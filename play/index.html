@@ -1,22 +1,1643 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>게임 준비 중</title>
-<style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-         background: #0d0b1e; color: #ecebff; font-family: system-ui, sans-serif; text-align: center; padding: 16px; }
-  h1 { font-size: 28px; }
-  p { color: #9a96c8; }
-  a { color: #3ee6ff; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>판타지 클래스 타워 디펜스</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .game-panel {
+            background-color: #111827;
+            border: 1px solid #1f2937;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .tower-card {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid #374151;
+            transition: all 0.2s ease;
+        }
+
+        .tower-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .tower-card.selected {
+            border-color: #fbbf24;
+            background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+    </style>
 </head>
-<body>
-  <div>
-    <h1>🛠️ 게임 준비 중</h1>
-    <p>내 작업실의 <b>⬆️ 게임 올리기</b>를 눌러<br>AI가 만들어 준 게임 코드를 <b>index.html</b> 이름으로 올리면<br>여기에 내 게임이 나타나요!</p>
-    <p><a href="../">← 내 작업실로</a></p>
-  </div>
+<body class="w-screen h-screen flex items-center justify-center p-2 sm:p-4">
+
+    <!-- 메인 디펜스 레이아웃 컨테이너 -->
+    <div class="relative w-full max-w-6xl bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col gap-4 shadow-2xl">
+        
+        <!-- [상단 헤더 정보바] -->
+        <div class="flex flex-wrap items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-5 py-3 gap-3">
+            <!-- 게임 타이틀 및 현재 스테이지/자연재해 표시 -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600/20 border border-indigo-500/40 rounded-lg flex items-center justify-center text-indigo-400 text-xl">
+                    <i class="fa-solid fa-swords"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-amber-400 tracking-wide flex items-center gap-2">
+                        판타지 클래스 타워 디펜스
+                    </h1>
+                    <p class="text-xs text-gray-400 font-medium">
+                        <span id="stage-label-text" class="text-amber-300 font-bold">스테이지 1</span> - 
+                        <span id="map-subtitle-text" class="text-emerald-400 font-semibold">🌲 평화로운 초원</span>
+                        <span id="disaster-badge-text" class="ml-1.5 text-[11px] bg-gray-950 border border-gray-700 px-2 py-0.5 rounded text-gray-300">🌪️ 자연재해: 돌풍</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- 스테이지 선택 탭 (스테이지 1 ~ 5) -->
+            <div class="flex flex-wrap items-center gap-1 bg-gray-950 p-1 border border-gray-800 rounded-xl">
+                <button id="btn-stage-0" onclick="selectStage(0)" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 text-white shadow cursor-pointer">스테이지 1 🌲</button>
+                <button id="btn-stage-1" onclick="selectStage(1)" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-400 hover:text-white cursor-pointer">스테이지 2 ❄️</button>
+                <button id="btn-stage-2" onclick="selectStage(2)" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-400 hover:text-white cursor-pointer">스테이지 3 🌋</button>
+                <button id="btn-stage-3" onclick="selectStage(3)" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-400 hover:text-white cursor-pointer">스테이지 4 🏜️</button>
+                <button id="btn-stage-4" onclick="selectStage(4)" class="px-2.5 py-1 text-xs font-bold rounded-lg text-gray-400 hover:text-white cursor-pointer">스테이지 5 ⚡</button>
+            </div>
+
+            <!-- 게임 수치 정보 (골드, 체력, 웨이브, 남은 몬스터) -->
+            <div class="flex items-center gap-3 text-sm font-bold">
+                <div class="flex items-center gap-2 bg-gray-950 border border-amber-500/30 px-3 py-1.5 rounded-lg">
+                    <span class="text-amber-400"><i class="fa-solid fa-sack-dollar"></i></span>
+                    <span id="ui-gold" class="text-amber-300">150</span>
+                </div>
+                <div class="flex items-center gap-2 bg-gray-950 border border-rose-500/30 px-3 py-1.5 rounded-lg">
+                    <span class="text-rose-500"><i class="fa-solid fa-heart"></i></span>
+                    <span id="ui-hp" class="text-rose-300">5</span>
+                </div>
+                <div class="flex items-center gap-2 bg-gray-950 border border-cyan-500/30 px-3 py-1.5 rounded-lg">
+                    <span class="text-cyan-400"><i class="fa-solid fa-wave-square"></i></span>
+                    <span id="ui-wave" class="text-cyan-200">0 / 20</span>
+                </div>
+                <div class="flex items-center gap-2 bg-gray-950 border border-purple-500/30 px-3 py-1.5 rounded-lg">
+                    <span class="text-purple-400"><i class="fa-solid fa-ghost"></i></span>
+                    <span id="ui-monsters" class="text-purple-200">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- [게임 메인 영역: 캔버스 + 우측 디펜스 패널] -->
+        <div class="flex flex-col lg:flex-row gap-4">
+            <!-- 캔버스 화면 -->
+            <div class="relative flex-1 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-inner flex items-center justify-center min-h-[420px]">
+                <canvas id="gameCanvas" width="720" height="540" class="w-full h-full object-contain cursor-crosshair"></canvas>
+                
+                <!-- [시작 화면 Overlay] -->
+                <div id="start-screen" class="absolute inset-0 bg-gray-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-20">
+                    <div class="w-16 h-16 bg-amber-500/20 border border-amber-400/40 rounded-2xl flex items-center justify-center text-amber-400 text-3xl mb-4">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h2 class="text-3xl font-black text-white mb-2">시작할까요?</h2>
+                    <p class="text-gray-400 text-sm mb-6 max-w-md">
+                        스테이지별 몬스터와 자연재해에 맞서 타워를 설치해 기지를 지키세요!<br/>
+                        <span class="text-amber-300 font-semibold">총 20개 웨이브</span>를 방어하고, <span class="text-cyan-300 font-semibold">3강 달성 시 특수 스킬</span>이 개방됩니다!
+                    </p>
+                    <button id="btn-start-game" onclick="startGame()" class="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-lg transition-all text-lg flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-play"></i> 게임 시작하기
+                    </button>
+                </div>
+
+                <!-- [게임 결과 Overlay] -->
+                <div id="end-screen" class="hidden absolute inset-0 bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+                    <div id="end-icon" class="w-20 h-20 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-emerald-400 text-4xl mb-4">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <h2 id="end-title" class="text-3xl font-black text-emerald-400 mb-2">STAGE CLEAR!</h2>
+                    <p id="end-desc" class="text-gray-300 text-sm mb-6 max-w-md">모든 몬스터를 성공적으로 방어했습니다.</p>
+                    <div class="flex items-center gap-3">
+                        <button id="btn-restart" onclick="restartGame()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-rotate-right"></i> 다시 하기
+                        </button>
+                        <button id="btn-next-stage" onclick="nextStage()" class="hidden px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-forward"></i> 다음 스테이지
+                        </button>
+                    </div>
+                </div>
+
+                <!-- [우클릭 상세 툴팁] -->
+                <div id="tower-tooltip" class="hidden absolute z-30 bg-gray-900/95 border border-amber-500/50 rounded-xl p-3 text-xs shadow-2xl backdrop-blur pointer-events-none w-48 space-y-1">
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-1">
+                        <span id="tooltip-name" class="font-bold text-amber-400 text-sm">타워 이름</span>
+                        <span id="tooltip-level" class="text-[10px] bg-indigo-900 text-indigo-300 px-1.5 py-0.5 rounded font-semibold">Lv.1</span>
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>공격력:</span> <span id="tooltip-atk" class="font-bold text-gray-100">0</span>
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>사거리:</span> <span id="tooltip-range" class="font-bold text-cyan-400">0</span>
+                    </div>
+                    <div class="flex justify-between text-gray-300">
+                        <span>공격속도:</span> <span id="tooltip-spd" class="font-bold text-emerald-400">0초</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 우측 조작 패널 -->
+            <div class="w-full lg:w-80 flex flex-col gap-3">
+                <!-- 클래스 타워 소환 카드 상점 -->
+                <div class="game-panel rounded-xl p-3.5 flex flex-col gap-2">
+                    <div class="flex items-center justify-between text-xs font-bold text-gray-300 border-b border-gray-800 pb-2">
+                        <span class="flex items-center gap-1.5 text-amber-400">
+                            <i class="fa-solid fa-chess-rook"></i> 클래스 타워 소환
+                        </span>
+                        <span class="text-[10px] text-gray-500 font-normal">[1~5] 단축키</span>
+                    </div>
+                    <div id="tower-shop-list" class="grid grid-cols-2 gap-2">
+                        <!-- JS Dynamic Insert -->
+                    </div>
+                </div>
+
+                <!-- 선택된 타워 강화 / 판매 패널 -->
+                <div class="game-panel rounded-xl p-3.5 flex flex-col gap-2">
+                    <div class="text-xs font-bold text-gray-300 border-b border-gray-800 pb-2 flex justify-between items-center">
+                        <span class="text-indigo-400"><i class="fa-solid fa-sliders"></i> 선택된 타워 관리</span>
+                        <span id="selected-tower-level-badge" class="hidden text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-bold">Lv.1</span>
+                    </div>
+                    <div id="selected-tower-info" class="text-xs text-gray-400 py-1 min-h-[70px]">
+                        맵 위의 타워를 좌클릭하면 강화 및 판매가 가능합니다.
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btn-upgrade-tower" onclick="upgradeSelectedTower()" disabled class="py-2 bg-indigo-600/50 text-gray-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-not-allowed">
+                            <i class="fa-solid fa-arrow-up"></i> 강화하기
+                        </button>
+                        <button id="btn-sell-tower" onclick="sellSelectedTower()" disabled class="py-2 bg-rose-600/50 text-gray-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-not-allowed">
+                            <i class="fa-solid fa-sack-xmark"></i> 판매하기
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 웨이브 시작 및 설정 패널 -->
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center justify-between gap-2">
+                    <button id="btn-wave-start" onclick="startNextWave()" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-lg text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-play"></i> 웨이브 시작 <span class="text-[10px] opacity-80">[Space]</span>
+                    </button>
+                    <label class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer bg-gray-950 border border-gray-800 px-2.5 py-2 rounded-lg">
+                        <input type="checkbox" id="chk-auto-wave" class="rounded accent-amber-500">
+                        <span>자동 시작</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- [스크립트 시작] -->
+    <script>
+        // ==========================================
+        // 1. 주요 설정값 (CONFIG & BALANCING)
+        // ==========================================
+        const CONFIG = {
+            CANVAS_WIDTH: 720,
+            CANVAS_HEIGHT: 540,
+            GRID_SIZE: 40,
+            INITIAL_GOLD: 150,
+            INITIAL_HP: 5,
+            TOTAL_WAVES: 20,
+            REFUND_RATE: 0.7
+        };
+
+        // 타워 기본 스펙
+        const TOWER_TYPES = {
+            assassin: { name: '암살자', cost: 100, damage: 34, range: 80,  attackSpeed: 0.6, icon: '🗡️', key: '1' },
+            archer:   { name: '아처',   cost: 80,  damage: 16, range: 175, attackSpeed: 0.5, icon: '🏹', key: '2' },
+            warrior:  { name: '전사',   cost: 90,  damage: 26, range: 70,  attackSpeed: 0.8, icon: '⚔️', key: '3' },
+            wizard:   { name: '마법사', cost: 110, damage: 45, range: 150, attackSpeed: 1.2, icon: '🧙‍♂️', key: '4' },
+            merchant: { name: '상인',   cost: 120, damage: 0,  range: 60,  attackSpeed: 2.5, icon: '💰', key: '5' }
+        };
+
+        // 스테이지별 맵, 전용 몬스터 및 자연재해 설정
+        const STAGES = [
+            {
+                stageNum: 1,
+                name: '초원',
+                subtitle: '🌲 평화로운 초원',
+                subtitleColor: 'text-emerald-400',
+                btnActiveClass: 'bg-emerald-600 text-white shadow',
+                disasterType: 'gale',
+                disasterLabel: '🌪️ 자연재해: 돌풍',
+                disasterInterval: 12000,
+                disasterDuration: 3500,
+                bgColor: '#16281e',
+                gridColor: '#1e382b',
+                pathColor: '#36533c',
+                path: [
+                    {x: 0, y: 160}, {x: 280, y: 160}, {x: 280, y: 400},
+                    {x: 520, y: 400}, {x: 520, y: 120}, {x: 720, y: 120}
+                ],
+                monsters: [
+                    { name: '슬라임', hp: 60, speed: 0.9, gold: 15, emoji: '🟢' },
+                    { name: '고블린', hp: 43, speed: 1.5, gold: 20, emoji: '👺' },
+                    { name: '숲 오크', hp: 120, speed: 0.8, gold: 35, emoji: '👹' },
+                    { name: '숲 골렘(보스)', hp: 272, speed: 0.6, gold: 80, emoji: '🗿' }
+                ]
+            },
+            {
+                stageNum: 2,
+                name: '설산',
+                subtitle: '❄️ 얼어붙은 설산',
+                subtitleColor: 'text-cyan-400',
+                btnActiveClass: 'bg-cyan-600 text-white shadow',
+                disasterType: 'blizzard',
+                disasterLabel: '❄️ 자연재해: 눈보라·고드름',
+                disasterInterval: 10000,
+                disasterDuration: 3000,
+                bgColor: '#172533',
+                gridColor: '#203347',
+                pathColor: '#3b546e',
+                path: [
+                    {x: 0, y: 120}, {x: 480, y: 120}, {x: 480, y: 320},
+                    {x: 200, y: 320}, {x: 200, y: 480}, {x: 720, y: 480}
+                ],
+                monsters: [
+                    { name: '얼음 슬라임', hp: 70, speed: 0.9, gold: 18, emoji: '🧊' },
+                    { name: '눈보라 늑대', hp: 50, speed: 1.6, gold: 22, emoji: '🐺' },
+                    { name: '설산 예티', hp: 150, speed: 0.75, gold: 40, emoji: '❄️' },
+                    { name: '서리 드래곤(보스)', hp: 310, speed: 0.55, gold: 90, emoji: '🐉' }
+                ]
+            },
+            {
+                stageNum: 3,
+                name: '화산',
+                subtitle: '🌋 뜨거운 화산',
+                subtitleColor: 'text-rose-400',
+                btnActiveClass: 'bg-rose-600 text-white shadow',
+                disasterType: 'eruption',
+                disasterLabel: '☄️ 자연재해: 화산 폭발',
+                disasterInterval: 11000,
+                disasterDuration: 2500,
+                bgColor: '#2b1216',
+                gridColor: '#3d1a20',
+                pathColor: '#5e2a32',
+                path: [
+                    {x: 0, y: 440}, {x: 320, y: 440}, {x: 320, y: 160},
+                    {x: 560, y: 160}, {x: 560, y: 360}, {x: 720, y: 360}
+                ],
+                monsters: [
+                    { name: '마그마 슬라임', hp: 80, speed: 0.95, gold: 20, emoji: '🌋' },
+                    { name: '화염 악마', hp: 60, speed: 1.7, gold: 25, emoji: '👿' },
+                    { name: '용암 거인', hp: 180, speed: 0.7, gold: 45, emoji: '🧌' },
+                    { name: '화염 마왕(보스)', hp: 360, speed: 0.5, gold: 100, emoji: '🐲' }
+                ]
+            },
+            {
+                stageNum: 4,
+                name: '고대 사막',
+                subtitle: '🏜️ 저주받은 사막',
+                subtitleColor: 'text-amber-400',
+                btnActiveClass: 'bg-amber-600 text-white shadow',
+                disasterType: 'sandstorm',
+                disasterLabel: '🏜️ 자연재해: 모래폭풍',
+                disasterInterval: 10000,
+                disasterDuration: 3500,
+                bgColor: '#2c2214',
+                gridColor: '#3f311d',
+                pathColor: '#695232',
+                path: [
+                    {x: 0, y: 100}, {x: 600, y: 100}, {x: 600, y: 260},
+                    {x: 120, y: 260}, {x: 120, y: 440}, {x: 720, y: 440}
+                ],
+                monsters: [
+                    { name: '독전갈', hp: 90, speed: 1.1, gold: 22, emoji: '🦂' },
+                    { name: '고대 미라', hp: 130, speed: 0.85, gold: 28, emoji: '🧟' },
+                    { name: '아누비스 수호자', hp: 220, speed: 0.75, gold: 50, emoji: '🐺' },
+                    { name: '바실리스크(보스)', hp: 430, speed: 0.55, gold: 115, emoji: '🐍' }
+                ]
+            },
+            {
+                stageNum: 5,
+                name: '천둥의 심연',
+                subtitle: '⚡ 번개 치는 심연',
+                subtitleColor: 'text-purple-400',
+                btnActiveClass: 'bg-purple-600 text-white shadow',
+                disasterType: 'thunderstorm',
+                disasterLabel: '⚡ 자연재해: 낙뢰 폭풍',
+                disasterInterval: 8500,
+                disasterDuration: 2200,
+                bgColor: '#1a132b',
+                gridColor: '#271c40',
+                pathColor: '#3e2d63',
+                path: [
+                    {x: 0, y: 260}, {x: 200, y: 260}, {x: 200, y: 100},
+                    {x: 520, y: 100}, {x: 520, y: 440}, {x: 200, y: 440},
+                    {x: 200, y: 340}, {x: 720, y: 340}
+                ],
+                monsters: [
+                    { name: '번개 박쥐', hp: 85, speed: 1.65, gold: 25, emoji: '🦇' },
+                    { name: '폭풍 망령', hp: 155, speed: 1.05, gold: 32, emoji: '👻' },
+                    { name: '뇌전 골렘', hp: 270, speed: 0.75, gold: 55, emoji: '🤖' },
+                    { name: '심연의 뇌신(보스)', hp: 520, speed: 0.55, gold: 140, emoji: '👹' }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // 2. 게임 변수 상태 정의
+        // ==========================================
+        let canvas, ctx;
+        let gameState = 'START'; // 'START', 'PLAYING', 'CLEAR', 'GAMEOVER'
+        let currentStageIndex = 0;
+        let gold = CONFIG.INITIAL_GOLD;
+        let hp = CONFIG.INITIAL_HP;
+        let wave = 0;
+        let selectedShopKey = null;
+        let selectedPlacedTower = null;
+
+        let towers = [];
+        let monsters = [];
+        let projectiles = [];
+        let particles = [];
+        let icicles = [];
+        let lavaMeteors = [];
+        let lightningStrikes = [];
+
+        let disasterActive = false;
+        let disasterEndTime = 0;
+        let lastDisasterTime = 0;
+
+        let waveInProgress = false;
+        let monsterSpawnQueue = [];
+        let lastSpawnTime = 0;
+        let hoverGrid = { x: -1, y: -1 };
+
+        // ==========================================
+        // 3. 메인 초기화 및 실행 루프
+        // ==========================================
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+
+            initShopUI();
+            setupEventListeners();
+            updateStageHeaderUI();
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        };
+
+        // 스테이지 헤더 및 버튼 강조 갱신
+        function updateStageHeaderUI() {
+            const stage = STAGES[currentStageIndex];
+            for (let i = 0; i < STAGES.length; i++) {
+                const btn = document.getElementById(`btn-stage-${i}`);
+                if (!btn) continue;
+                if (i === currentStageIndex) {
+                    btn.className = `px-2.5 py-1 text-xs font-bold rounded-lg cursor-pointer ${STAGES[i].btnActiveClass}`;
+                } else {
+                    btn.className = 'px-2.5 py-1 text-xs font-bold rounded-lg text-gray-400 hover:text-white cursor-pointer';
+                }
+            }
+            document.getElementById('stage-label-text').innerText = `스테이지 ${stage.stageNum}`;
+            const subtitle = document.getElementById('map-subtitle-text');
+            subtitle.innerText = stage.subtitle;
+            subtitle.className = `${stage.subtitleColor} font-semibold`;
+            document.getElementById('disaster-badge-text').innerText = stage.disasterLabel;
+        }
+
+        // 스테이지 선택
+        function selectStage(index) {
+            currentStageIndex = index;
+            updateStageHeaderUI();
+            restartGame();
+        }
+
+        // 다음 스테이지로 이동
+        function nextStage() {
+            if (currentStageIndex < STAGES.length - 1) {
+                selectStage(currentStageIndex + 1);
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            lastDisasterTime = performance.now();
+            gameState = 'PLAYING';
+        }
+
+        function restartGame() {
+            gold = CONFIG.INITIAL_GOLD;
+            hp = CONFIG.INITIAL_HP;
+            wave = 0;
+            towers = [];
+            monsters = [];
+            projectiles = [];
+            particles = [];
+            icicles = [];
+            lavaMeteors = [];
+            lightningStrikes = [];
+            disasterActive = false;
+            disasterEndTime = 0;
+            lastDisasterTime = performance.now();
+            waveInProgress = false;
+            monsterSpawnQueue = [];
+            selectedShopKey = null;
+            selectedPlacedTower = null;
+
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.add('hidden');
+            gameState = 'PLAYING';
+            generateIcicles();
+            updateUI();
+            renderSelectedTowerPanel();
+        }
+
+        // 설산 스테이지(스테이지 2) 고드름 장애물 생성
+        function generateIcicles() {
+            icicles = [];
+            if (STAGES[currentStageIndex].disasterType !== 'blizzard') return;
+
+            const count = 7;
+            let attempts = 0;
+            while (icicles.length < count && attempts < 100) {
+                attempts++;
+                const gx = Math.floor(Math.random() * (CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE)) * CONFIG.GRID_SIZE;
+                const gy = Math.floor(Math.random() * (CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE)) * CONFIG.GRID_SIZE;
+
+                if (!isPath(gx, gy) && !towers.some(t => t.x === gx && t.y === gy) && !icicles.some(ic => ic.x === gx && ic.y === gy)) {
+                    icicles.push({ x: gx, y: gy });
+                }
+            }
+        }
+
+        // 고드름 방향 사선 시선(Line of Sight) 차단 검사
+        function lineIntersectsBox(x1, y1, x2, y2, rx, ry, rw, rh) {
+            const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+            if (maxX < rx || minX > rx + rw || maxY < ry || minY > ry + rh) return false;
+
+            const steps = 15;
+            for (let i = 1; i < steps; i++) {
+                const px = x1 + (x2 - x1) * (i / steps);
+                const py = y1 + (y2 - y1) * (i / steps);
+                if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function isBlockedByIcicle(x1, y1, x2, y2) {
+            if (STAGES[currentStageIndex].disasterType !== 'blizzard') return false;
+            for (let ic of icicles) {
+                if (lineIntersectsBox(x1, y1, x2, y2, ic.x, ic.y, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 스테이지별 고유 자연재해 발생 및 업데이트
+        function updateNaturalDisaster(now) {
+            if (gameState !== 'PLAYING') {
+                disasterActive = false;
+                return;
+            }
+
+            const stage = STAGES[currentStageIndex];
+
+            // 주기마다 자연재해 발동
+            if (now - lastDisasterTime > stage.disasterInterval) {
+                lastDisasterTime = now;
+                disasterEndTime = now + stage.disasterDuration;
+                disasterActive = true;
+
+                if (stage.disasterType === 'gale') {
+                    addParticle(CONFIG.CANVAS_WIDTH / 2, 60, "🌪️ 돌풍 발생! 몬스터 이동속도 감소!", "#34d399");
+                } else if (stage.disasterType === 'blizzard') {
+                    addParticle(CONFIG.CANVAS_WIDTH / 2, 60, "❄️ 눈보라 몰아침! (공격속도 2배!)", "#38bdf8");
+                } else if (stage.disasterType === 'eruption') {
+                    addParticle(CONFIG.CANVAS_WIDTH / 2, 60, "🌋 화산 폭발! 용암 유성우 낙하!", "#fb7185");
+                    triggerVolcanicEruption();
+                } else if (stage.disasterType === 'sandstorm') {
+                    addParticle(CONFIG.CANVAS_WIDTH / 2, 60, "🏜️ 모래폭풍! 모든 타워 사거리 30% 감소!", "#fbbf24");
+                } else if (stage.disasterType === 'thunderstorm') {
+                    addParticle(CONFIG.CANVAS_WIDTH / 2, 60, "⚡ 낙뢰 폭풍! 타워 감전 및 전격 피해!", "#c084fc");
+                    triggerThunderstorm(now);
+                }
+            }
+
+            if (now > disasterEndTime) {
+                disasterActive = false;
+            }
+
+            // 화산 유성 낙하 업데이트
+            for (let i = lavaMeteors.length - 1; i >= 0; i--) {
+                const m = lavaMeteors[i];
+                m.y += m.vy;
+                m.x += m.vx;
+                if (m.y >= m.targetY) {
+                    addParticle(m.targetX, m.targetY, "🔥 용암 폭발!", "#f97316");
+                    monsters.forEach(mon => {
+                        if (Math.hypot(mon.x - m.targetX, mon.y - m.targetY) <= 65) {
+                            mon.hp -= (30 + wave * 10);
+                        }
+                    });
+                    lavaMeteors.splice(i, 1);
+                }
+            }
+
+            // 낙뢰 시각효과 수명 감소
+            for (let i = lightningStrikes.length - 1; i >= 0; i--) {
+                lightningStrikes[i].life -= 0.03;
+                if (lightningStrikes[i].life <= 0) {
+                    lightningStrikes.splice(i, 1);
+                }
+            }
+        }
+
+        // 화산 폭발 유성 생성
+        function triggerVolcanicEruption() {
+            const p = STAGES[currentStageIndex].path;
+            for (let i = 0; i < 4; i++) {
+                let tx, ty;
+                if (monsters.length > 0 && i < monsters.length) {
+                    tx = monsters[i].x;
+                    ty = monsters[i].y;
+                } else {
+                    const segIdx = Math.floor(Math.random() * (p.length - 1));
+                    const ratio = Math.random();
+                    tx = p[segIdx].x + (p[segIdx + 1].x - p[segIdx].x) * ratio;
+                    ty = p[segIdx].y + (p[segIdx + 1].y - p[segIdx].y) * ratio;
+                }
+                lavaMeteors.push({
+                    x: tx - 80,
+                    y: -40 - i * 45,
+                    targetX: tx,
+                    targetY: ty,
+                    vx: 2.2,
+                    vy: 9.5
+                });
+            }
+        }
+
+        // 심연 낙뢰 발동
+        function triggerThunderstorm(now) {
+            const strikeCount = 2;
+            for (let i = 0; i < strikeCount; i++) {
+                let sx, sy;
+                if (towers.length > 0) {
+                    const targetTower = towers[Math.floor(Math.random() * towers.length)];
+                    sx = targetTower.x + 20;
+                    sy = targetTower.y + 20;
+                    targetTower.stunnedUntil = now + 2200;
+                    addParticle(sx, sy - 10, "⚡ 감전!", "#facc15");
+                } else {
+                    sx = 120 + Math.random() * (CONFIG.CANVAS_WIDTH - 240);
+                    sy = 100 + Math.random() * (CONFIG.CANVAS_HEIGHT - 200);
+                }
+
+                lightningStrikes.push({ x: sx, y: sy, life: 1.0 });
+
+                // 낙뢰 주변 몬스터에게 전격 피해
+                monsters.forEach(mon => {
+                    if (Math.hypot(mon.x - sx, mon.y - sy) <= 75) {
+                        mon.hp -= (35 + wave * 12);
+                    }
+                });
+            }
+        }
+
+        // ==========================================
+        // 4. 상점 카드리스트 초기화 및 키보드 매핑
+        // ==========================================
+        function initShopUI() {
+            const container = document.getElementById('tower-shop-list');
+            container.innerHTML = '';
+
+            Object.keys(TOWER_TYPES).forEach(key => {
+                const t = TOWER_TYPES[key];
+                const card = document.createElement('div');
+                card.id = `shop-card-${key}`;
+                card.className = 'tower-card rounded-lg p-2 flex flex-col justify-between cursor-pointer relative';
+                card.onclick = () => selectShopTower(key);
+                card.innerHTML = `
+                    <div class="absolute top-1 right-1 bg-gray-900/80 border border-amber-500/40 text-amber-300 px-1 text-[9px] font-bold rounded">
+                        [${t.key}]
+                    </div>
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span class="text-xl">${t.icon}</span>
+                        <div>
+                            <div class="text-xs font-bold text-gray-100">${t.name}</div>
+                            <div class="text-[10px] text-amber-400 font-bold"><i class="fa-solid fa-sack-dollar"></i> ${t.cost}G</div>
+                        </div>
+                    </div>
+                    <div class="text-[9px] text-gray-400 border-t border-gray-800 pt-1 flex justify-between">
+                        <span>공격 ${t.damage}</span>
+                        <span class="text-emerald-400">속도 ${t.attackSpeed}s</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectShopTower(key) {
+            if (selectedShopKey === key) {
+                selectedShopKey = null;
+            } else {
+                selectedShopKey = key;
+                selectedPlacedTower = null;
+                renderSelectedTowerPanel();
+            }
+            updateShopCardsHighlight();
+        }
+
+        function updateShopCardsHighlight() {
+            Object.keys(TOWER_TYPES).forEach(key => {
+                const card = document.getElementById(`shop-card-${key}`);
+                if (key === selectedShopKey) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+        }
+
+        // ==========================================
+        // 5. 웨이브 진행 및 몬스터 스폰
+        // ==========================================
+        function startNextWave() {
+            if (waveInProgress || gameState !== 'PLAYING') return;
+            if (wave >= CONFIG.TOTAL_WAVES) return;
+
+            wave++;
+            waveInProgress = true;
+            updateUI();
+
+            const stage = STAGES[currentStageIndex];
+            const monsterCount = 6 + wave * 2;
+            monsterSpawnQueue = [];
+
+            for (let i = 0; i < monsterCount; i++) {
+                let mType;
+                if (i % 8 === 7) mType = stage.monsters[3]; // 보스
+                else if (i % 4 === 3) mType = stage.monsters[2]; // 강함
+                else if (i % 2 === 1) mType = stage.monsters[1]; // 빠름
+                else mType = stage.monsters[0]; // 일반
+
+                const hpScale = 1 + (wave - 1) * 0.25;
+                monsterSpawnQueue.push({
+                    name: mType.name,
+                    maxHp: Math.round(mType.hp * hpScale),
+                    hp: Math.round(mType.hp * hpScale),
+                    speed: mType.speed,
+                    gold: mType.gold,
+                    emoji: mType.emoji,
+                    pathIndex: 0,
+                    x: stage.path[0].x,
+                    y: stage.path[0].y
+                });
+            }
+        }
+
+        // ==========================================
+        // 6. 이벤트 리스너 (마우스, 키보드, 우클릭)
+        // ==========================================
+        function setupEventListeners() {
+            window.addEventListener('keydown', (e) => {
+                if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    e.preventDefault();
+                }
+
+                const keyMap = { '1': 'assassin', '2': 'archer', '3': 'warrior', '4': 'wizard', '5': 'merchant' };
+                if (keyMap[e.key]) {
+                    const towerKey = keyMap[e.key];
+                    if (hoverGrid.x >= 0 && hoverGrid.y >= 0) {
+                        placeTower(towerKey, hoverGrid.x, hoverGrid.y);
+                    } else {
+                        selectShopTower(towerKey);
+                    }
+                }
+                if (e.code === 'Space') startNextWave();
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+
+                hoverGrid.x = Math.floor(mx / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE;
+                hoverGrid.y = Math.floor(my / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                hoverGrid.x = -1;
+                hoverGrid.y = -1;
+            });
+
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+
+                const gx = Math.floor(mx / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE;
+                const gy = Math.floor(my / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE;
+
+                const clickedTower = towers.find(t => t.x === gx && t.y === gy);
+
+                if (clickedTower) {
+                    selectedPlacedTower = clickedTower;
+                    selectedShopKey = null;
+                    updateShopCardsHighlight();
+                    renderSelectedTowerPanel();
+                } else if (selectedShopKey) {
+                    placeTower(selectedShopKey, gx, gy);
+                } else {
+                    selectedPlacedTower = null;
+                    renderSelectedTowerPanel();
+                }
+            });
+
+            canvas.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+
+                const gx = Math.floor(mx / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE;
+                const gy = Math.floor(my / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE;
+
+                const clickedTower = towers.find(t => t.x === gx && t.y === gy);
+                const tooltip = document.getElementById('tower-tooltip');
+
+                if (clickedTower) {
+                    document.getElementById('tooltip-name').innerText = clickedTower.name;
+                    document.getElementById('tooltip-level').innerText = `Lv.${clickedTower.level}`;
+                    document.getElementById('tooltip-atk').innerText = Math.round(clickedTower.damage);
+                    document.getElementById('tooltip-range').innerText = Math.round(clickedTower.range);
+                    document.getElementById('tooltip-spd').innerText = `${clickedTower.attackSpeed}s`;
+
+                    tooltip.style.left = `${e.clientX - rect.left + 15}px`;
+                    tooltip.style.top = `${e.clientY - rect.top + 15}px`;
+                    tooltip.classList.remove('hidden');
+                } else {
+                    tooltip.classList.add('hidden');
+                }
+            });
+        }
+
+        function placeTower(key, gx, gy) {
+            if (gx < 0 || gy < 0 || gx >= CONFIG.CANVAS_WIDTH || gy >= CONFIG.CANVAS_HEIGHT) return false;
+            const tType = TOWER_TYPES[key];
+            if (!tType) return false;
+
+            const existingTower = towers.find(t => t.x === gx && t.y === gy);
+            if (existingTower) {
+                addParticle(gx + 20, gy + 20, "이미 설치됨!", "#ef4444");
+                return false;
+            }
+
+            if (icicles.some(ic => ic.x === gx && ic.y === gy)) {
+                addParticle(gx + 20, gy + 20, "고드름 위치 설치 불가!", "#ef4444");
+                return false;
+            }
+
+            if (isPath(gx, gy)) {
+                addParticle(gx + 20, gy + 20, "길에는 설치 불가!", "#ef4444");
+                return false;
+            }
+
+            if (gold >= tType.cost) {
+                gold -= tType.cost;
+                towers.push({
+                    key: key,
+                    name: tType.name,
+                    x: gx,
+                    y: gy,
+                    originX: gx,
+                    originY: gy,
+                    level: 1,
+                    damage: tType.damage,
+                    range: tType.range,
+                    attackSpeed: tType.attackSpeed,
+                    costSum: tType.cost,
+                    lastAttackTime: 0,
+                    stunnedUntil: 0,
+                    icon: tType.icon
+                });
+                addParticle(gx + 20, gy + 20, `${tType.name} 소환!`, "#3b82f6");
+                updateUI();
+                return true;
+            } else {
+                addParticle(gx + 20, gy + 20, "골드 부족!", "#ef4444");
+                return false;
+            }
+        }
+
+        function isPath(gx, gy) {
+            const stage = STAGES[currentStageIndex];
+            const p = stage.path;
+            const margin = 24;
+
+            for (let i = 0; i < p.length - 1; i++) {
+                const segStart = p[i];
+                const segEnd = p[i + 1];
+
+                const minX = Math.min(segStart.x, segEnd.x) - margin;
+                const maxX = Math.max(segStart.x, segEnd.x) + margin;
+                const minY = Math.min(segStart.y, segEnd.y) - margin;
+                const maxY = Math.max(segStart.y, segEnd.y) + margin;
+
+                if (gx + CONFIG.GRID_SIZE > minX && gx < maxX && gy + CONFIG.GRID_SIZE > minY && gy < maxY) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // ==========================================
+        // 7. 타워 강화 / 판매 및 정보 표시
+        // ==========================================
+        function upgradeSelectedTower() {
+            if (!selectedPlacedTower) return;
+            const cost = Math.round(selectedPlacedTower.costSum * 0.8);
+            if (gold >= cost) {
+                gold -= cost;
+                selectedPlacedTower.level++;
+                selectedPlacedTower.costSum += cost;
+                selectedPlacedTower.damage = Math.round(selectedPlacedTower.damage * 1.35);
+                selectedPlacedTower.range = Math.round(selectedPlacedTower.range * 1.1);
+                addParticle(selectedPlacedTower.x + 20, selectedPlacedTower.y + 20, `Lv.${selectedPlacedTower.level} 강화!`, "#fbbf24");
+                updateUI();
+                renderSelectedTowerPanel();
+            } else {
+                addParticle(selectedPlacedTower.x + 20, selectedPlacedTower.y + 20, "골드 부족!", "#ef4444");
+            }
+        }
+
+        function sellSelectedTower() {
+            if (!selectedPlacedTower) return;
+            const refund = Math.round(selectedPlacedTower.costSum * CONFIG.REFUND_RATE);
+            gold += refund;
+            addParticle(selectedPlacedTower.x + 20, selectedPlacedTower.y + 20, `+${refund}G 판매`, "#10b981");
+            towers = towers.filter(t => t !== selectedPlacedTower);
+            selectedPlacedTower = null;
+            updateUI();
+            renderSelectedTowerPanel();
+        }
+
+        function renderSelectedTowerPanel() {
+            const infoDiv = document.getElementById('selected-tower-info');
+            const badge = document.getElementById('selected-tower-level-badge');
+            const btnUpgrade = document.getElementById('btn-upgrade-tower');
+            const btnSell = document.getElementById('btn-sell-tower');
+
+            if (selectedPlacedTower) {
+                const t = selectedPlacedTower;
+                const upgradeCost = Math.round(t.costSum * 0.8);
+                const sellRefund = Math.round(t.costSum * CONFIG.REFUND_RATE);
+
+                badge.innerText = `Lv.${t.level}`;
+                badge.classList.remove('hidden');
+
+                let skillDesc = '';
+                if (t.key === 'wizard') skillDesc = t.level >= 3 ? '🔥 [3강] 파이어볼 범위 폭발' : ' 기본: 파란 마법탄 (3강시 폭발)';
+                else if (t.key === 'warrior') skillDesc = t.level >= 3 ? '💥 [3강] 충격파 내려찍기' : ' 기본: 근접 베기 (3강시 충격파)';
+                else if (t.key === 'archer') skillDesc = t.level >= 3 ? '🏹 [3강] 화살 3연발 사격' : ' 기본: 화살 사격 (3강시 3연사)';
+                else if (t.key === 'assassin') skillDesc = t.level >= 3 ? '⚡ [3강] 경로 추적 백스탭' : ' 기본: 백스탭 (3강시 경로 추적)';
+                else if (t.key === 'merchant') skillDesc = `💰 2.5초마다 +${20 + (t.level - 1) * 10}G 생성`;
+
+                infoDiv.innerHTML = `
+                    <div class="font-bold text-amber-300 mb-1 flex items-center justify-between">
+                        <span>${t.icon} ${t.name}</span>
+                        <span class="text-xs text-indigo-400">사거리 ${Math.round(t.range)}px</span>
+                    </div>
+                    <div class="text-[11px] text-gray-300 space-y-0.5">
+                        <div>공격력: <span class="text-amber-400 font-bold">${t.key === 'merchant' ? '없음' : Math.round(t.damage)}</span></div>
+                        <div>공격속도: <span class="text-emerald-400 font-bold">${t.attackSpeed}초</span></div>
+                        <div class="text-[10px] text-purple-300 mt-1 font-semibold">${skillDesc}</div>
+                    </div>
+                `;
+
+                btnUpgrade.disabled = false;
+                btnUpgrade.className = 'py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow';
+                btnUpgrade.innerHTML = `<i class="fa-solid fa-arrow-up"></i> 강화 (${upgradeCost}G)`;
+
+                btnSell.disabled = false;
+                btnSell.className = 'py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow';
+                btnSell.innerHTML = `<i class="fa-solid fa-sack-xmark"></i> 판매 (+${sellRefund}G)`;
+            } else {
+                badge.classList.add('hidden');
+                infoDiv.innerText = '맵 위의 타워를 좌클릭하면 강화 및 판매가 가능합니다.';
+                btnUpgrade.disabled = true;
+                btnUpgrade.className = 'py-2 bg-indigo-600/50 text-gray-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-not-allowed';
+                btnUpgrade.innerHTML = `<i class="fa-solid fa-arrow-up"></i> 강화하기`;
+
+                btnSell.disabled = true;
+                btnSell.className = 'py-2 bg-rose-600/50 text-gray-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-not-allowed';
+                btnSell.innerHTML = `<i class="fa-solid fa-sack-xmark"></i> 판매하기`;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('ui-gold').innerText = gold;
+            document.getElementById('ui-hp').innerText = hp;
+            document.getElementById('ui-wave').innerText = `${wave} / ${CONFIG.TOTAL_WAVES}`;
+            document.getElementById('ui-monsters').innerText = monsters.length + monsterSpawnQueue.length;
+        }
+
+        function addParticle(x, y, text, color = '#ffffff') {
+            particles.push({
+                x: x,
+                y: y,
+                text: text,
+                color: color,
+                life: 1.0,
+                velocityY: -0.8
+            });
+        }
+
+        // ==========================================
+        // 8. 게임 로직 업데이트 및 렌더링 루프
+        // ==========================================
+        function spawnMonsters(now) {
+            if (monsterSpawnQueue.length > 0 && now - lastSpawnTime > 800) {
+                const m = monsterSpawnQueue.shift();
+                monsters.push(m);
+                lastSpawnTime = now;
+            }
+        }
+
+        function updateMonsters() {
+            const stage = STAGES[currentStageIndex];
+            const p = stage.path;
+
+            // 초원 스테이지 돌풍 활성화 시 몬스터 이동속도 45% 감소
+            const galeSlowFactor = (stage.disasterType === 'gale' && disasterActive) ? 0.55 : 1.0;
+
+            for (let i = monsters.length - 1; i >= 0; i--) {
+                const m = monsters[i];
+                if (m.pathIndex >= p.length - 1) {
+                    hp--;
+                    monsters.splice(i, 1);
+                    updateUI();
+                    if (hp <= 0) {
+                        gameState = 'GAMEOVER';
+                        showEndScreen(false);
+                    }
+                    continue;
+                }
+
+                const target = p[m.pathIndex + 1];
+                const dx = target.x - m.x;
+                const dy = target.y - m.y;
+                const dist = Math.hypot(dx, dy);
+                const currentSpeed = m.speed * galeSlowFactor;
+
+                if (dist < currentSpeed) {
+                    m.x = target.x;
+                    m.y = target.y;
+                    m.pathIndex++;
+                } else {
+                    m.x += (dx / dist) * currentSpeed;
+                    m.y += (dy / dist) * currentSpeed;
+                }
+            }
+        }
+
+        function updateTowers(now) {
+            const stage = STAGES[currentStageIndex];
+            // 눈보라 발동 시 타워 공격속도 2배 (쿨타임 0.5배)
+            const speedMultiplier = (stage.disasterType === 'blizzard' && disasterActive) ? 0.5 : 1.0;
+            // 모래폭풍 발동 시 타워 사거리 30% 감소
+            const rangeMultiplier = (stage.disasterType === 'sandstorm' && disasterActive) ? 0.7 : 1.0;
+
+            towers.forEach(t => {
+                // 낙뢰에 맞아 감전된 경우 행동 불가
+                if (t.stunnedUntil && now < t.stunnedUntil) {
+                    return;
+                }
+
+                const effectiveRange = t.range * rangeMultiplier;
+
+                if (t.key === 'merchant') {
+                    if (now - t.lastAttackTime > (t.attackSpeed * speedMultiplier) * 1000) {
+                        const earned = 20 + (t.level - 1) * 10;
+                        gold += earned;
+                        t.lastAttackTime = now;
+                        addParticle(t.x + 20, t.y + 10, `+${earned}G`, '#f59e0b');
+                        updateUI();
+                    }
+                    return;
+                }
+
+                // 3강 암살자는 몬스터 경로 추적 공격
+                if (t.key === 'assassin' && t.level >= 3) {
+                    let target = monsters.find(m => Math.hypot(m.x - t.originX, m.y - t.originY) <= effectiveRange * 1.8 && !isBlockedByIcicle(t.originX + 20, t.originY + 20, m.x, m.y));
+                    if (target) {
+                        t.x = target.x - 10;
+                        t.y = target.y - 10;
+                    } else {
+                        t.x = t.originX;
+                        t.y = t.originY;
+                    }
+                }
+
+                if (now - t.lastAttackTime < (t.attackSpeed * speedMultiplier) * 1000) return;
+
+                const inRangeMonsters = monsters.filter(m => {
+                    const dist = Math.hypot(m.x - (t.x + 20), m.y - (t.y + 20));
+                    if (dist > effectiveRange) return false;
+                    if (isBlockedByIcicle(t.x + 20, t.y + 20, m.x, m.y)) return false;
+                    return true;
+                });
+                if (inRangeMonsters.length === 0) return;
+
+                const target = inRangeMonsters[0];
+                t.lastAttackTime = now;
+
+                if (t.key === 'wizard') {
+                    if (t.level >= 3) {
+                        projectiles.push({
+                            type: 'fireball',
+                            x: t.x + 20,
+                            y: t.y + 20,
+                            targetX: target.x,
+                            targetY: target.y,
+                            speed: 6,
+                            damage: t.damage,
+                            radius: 40,
+                            color: '#ef4444'
+                        });
+                    } else {
+                        projectiles.push({
+                            type: 'bolt',
+                            x: t.x + 20,
+                            y: t.y + 20,
+                            target: target,
+                            speed: 7,
+                            damage: t.damage,
+                            color: '#3b82f6'
+                        });
+                    }
+                } else if (t.key === 'archer') {
+                    if (t.level >= 3) {
+                        for (let b = 0; b < 3; b++) {
+                            setTimeout(() => {
+                                if (monsters.includes(target)) {
+                                    projectiles.push({
+                                        type: 'arrow',
+                                        x: t.x + 20,
+                                        y: t.y + 20,
+                                        target: target,
+                                        speed: 9,
+                                        damage: Math.round(t.damage * 0.7),
+                                        color: '#f59e0b'
+                                    });
+                                }
+                            }, b * 100);
+                        }
+                    } else {
+                        projectiles.push({
+                            type: 'arrow',
+                            x: t.x + 20,
+                            y: t.y + 20,
+                            target: target,
+                            speed: 8,
+                            damage: t.damage,
+                            color: '#eab308'
+                        });
+                    }
+                } else if (t.key === 'warrior') {
+                    if (t.level >= 3) {
+                        particles.push({
+                            x: target.x,
+                            y: target.y,
+                            text: '💥 slam',
+                            color: '#f97316',
+                            life: 0.5,
+                            velocityY: -0.2
+                        });
+                        monsters.forEach(m => {
+                            if (Math.hypot(m.x - target.x, m.y - target.y) <= 45) {
+                                m.hp -= t.damage;
+                            }
+                        });
+                    } else {
+                        target.hp -= t.damage;
+                        particles.push({
+                            x: target.x,
+                            y: target.y,
+                            text: '⚔️ slash',
+                            color: '#e2e8f0',
+                            life: 0.4,
+                            velocityY: -0.5
+                        });
+                    }
+                } else if (t.key === 'assassin') {
+                    const dmg = t.level >= 3 ? Math.round(t.damage * 1.3) : t.damage;
+                    target.hp -= dmg;
+                    particles.push({
+                        x: target.x,
+                        y: target.y,
+                        text: t.level >= 3 ? '⚡ CRIT!' : '🗡️ backstab',
+                        color: t.level >= 3 ? '#ec4899' : '#a855f7',
+                        life: 0.4,
+                        velocityY: -0.5
+                    });
+                }
+            });
+        }
+
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                if (p.type === 'fireball') {
+                    const dx = p.targetX - p.x;
+                    const dy = p.targetY - p.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < p.speed) {
+                        particles.push({
+                            x: p.targetX,
+                            y: p.targetY,
+                            text: '💥 EXPLOSION!',
+                            color: '#f97316',
+                            life: 0.6,
+                            velocityY: -0.2
+                        });
+                        monsters.forEach(m => {
+                            if (Math.hypot(m.x - p.targetX, m.y - p.targetY) <= p.radius) {
+                                m.hp -= p.damage;
+                            }
+                        });
+                        projectiles.splice(i, 1);
+                    } else {
+                        p.x += (dx / dist) * p.speed;
+                        p.y += (dy / dist) * p.speed;
+                    }
+                } else {
+                    if (!monsters.includes(p.target)) {
+                        projectiles.splice(i, 1);
+                        continue;
+                    }
+                    const dx = p.target.x - p.x;
+                    const dy = p.target.y - p.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < p.speed) {
+                        p.target.hp -= p.damage;
+                        projectiles.splice(i, 1);
+                    } else {
+                        p.x += (dx / dist) * p.speed;
+                        p.y += (dy / dist) * p.speed;
+                    }
+                }
+            }
+
+            for (let i = monsters.length - 1; i >= 0; i--) {
+                if (monsters[i].hp <= 0) {
+                    gold += monsters[i].gold;
+                    addParticle(monsters[i].x, monsters[i].y, `+${monsters[i].gold}G`, '#fbbf24');
+                    monsters.splice(i, 1);
+                    updateUI();
+                }
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.y += pt.velocityY;
+                pt.life -= 0.025;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function checkWaveEnd() {
+            if (waveInProgress && monsters.length === 0 && monsterSpawnQueue.length === 0) {
+                waveInProgress = false;
+                if (wave >= CONFIG.TOTAL_WAVES) {
+                    gameState = 'CLEAR';
+                    showEndScreen(true);
+                } else if (document.getElementById('chk-auto-wave').checked) {
+                    setTimeout(() => {
+                        if (gameState === 'PLAYING') startNextWave();
+                    }, 1000);
+                }
+            }
+        }
+
+        function showEndScreen(isClear) {
+            const screen = document.getElementById('end-screen');
+            const icon = document.getElementById('end-icon');
+            const title = document.getElementById('end-title');
+            const desc = document.getElementById('end-desc');
+            const btnNext = document.getElementById('btn-next-stage');
+
+            screen.classList.remove('hidden');
+            if (isClear) {
+                icon.className = 'w-20 h-20 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-emerald-400 text-4xl mb-4';
+                icon.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+                title.className = 'text-3xl font-black text-emerald-400 mb-2';
+                title.innerText = `STAGE ${STAGES[currentStageIndex].stageNum} CLEAR!`;
+                desc.innerText = '모든 20개 웨이브를 성공적으로 방어했습니다!';
+                if (currentStageIndex < STAGES.length - 1) {
+                    btnNext.classList.remove('hidden');
+                } else {
+                    btnNext.classList.add('hidden');
+                }
+            } else {
+                icon.className = 'w-20 h-20 bg-rose-500/20 border border-rose-500/40 rounded-full flex items-center justify-center text-rose-500 text-4xl mb-4';
+                icon.innerHTML = '<i class="fa-solid fa-skull"></i>';
+                title.className = 'text-3xl font-black text-rose-500 mb-2';
+                title.innerText = 'GAME OVER';
+                desc.innerText = '기지의 체력이 모두 소진되었습니다.';
+                btnNext.classList.add('hidden');
+            }
+        }
+
+        function drawMap() {
+            const stage = STAGES[currentStageIndex];
+            ctx.fillStyle = stage.bgColor;
+            ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+            ctx.strokeStyle = stage.gridColor;
+            ctx.lineWidth = 1;
+            for (let x = 0; x < CONFIG.CANVAS_WIDTH; x += CONFIG.GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += CONFIG.GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+
+            const p = stage.path;
+            ctx.strokeStyle = stage.pathColor;
+            ctx.lineWidth = 40;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(p[0].x, p[0].y);
+            for (let i = 1; i < p.length; i++) {
+                ctx.lineTo(p[i].x, p[i].y);
+            }
+            ctx.stroke();
+
+            const lastPt = p[p.length - 1];
+            ctx.font = '24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🏰', lastPt.x - 15, lastPt.y);
+        }
+
+        // 설산 고드름 장애물 그리기
+        function drawIcicles() {
+            if (STAGES[currentStageIndex].disasterType !== 'blizzard') return;
+            icicles.forEach(ic => {
+                ctx.fillStyle = 'rgba(186, 230, 253, 0.25)';
+                ctx.fillRect(ic.x + 2, ic.y + 2, CONFIG.GRID_SIZE - 4, CONFIG.GRID_SIZE - 4);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(ic.x + 2, ic.y + 2, CONFIG.GRID_SIZE - 4, CONFIG.GRID_SIZE - 4);
+
+                ctx.font = '22px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🧊', ic.x + 20, ic.y + 20);
+            });
+        }
+
+        // 스테이지별 고유 자연재해 시각 이펙트 그리기
+        function drawDisasterEffects(now) {
+            const stage = STAGES[currentStageIndex];
+
+            // 화산 유성 낙하 그리기
+            lavaMeteors.forEach(m => {
+                ctx.strokeStyle = 'rgba(249, 115, 22, 0.6)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(m.x - 20, m.y - 60);
+                ctx.lineTo(m.x, m.y);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(m.x, m.y, 9, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 심연 낙뢰 번개 줄기 그리기
+            lightningStrikes.forEach(ls => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ls.life);
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(ls.x + 15, 0);
+                ctx.lineTo(ls.x - 12, ls.y * 0.45);
+                ctx.lineTo(ls.x + 10, ls.y * 0.7);
+                ctx.lineTo(ls.x, ls.y);
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+                ctx.beginPath();
+                ctx.arc(ls.x, ls.y, 40, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            if (!disasterActive) return;
+
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'center';
+
+            if (stage.disasterType === 'gale') {
+                // 초원 돌풍 이펙트
+                ctx.strokeStyle = 'rgba(167, 243, 208, 0.35)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 12; i++) {
+                    const wx = ((Date.now() * 0.45 + i * 95) % (CONFIG.CANVAS_WIDTH + 100)) - 50;
+                    const wy = 40 + (i * 42) % (CONFIG.CANVAS_HEIGHT - 60);
+                    ctx.beginPath();
+                    ctx.moveTo(wx, wy);
+                    ctx.lineTo(wx + 55, wy - 6);
+                    ctx.stroke();
+                }
+                ctx.fillStyle = '#34d399';
+                ctx.fillText('🌪️ 돌풍 작동 중! 몬스터 이동속도 45% 감소', CONFIG.CANVAS_WIDTH / 2, 24);
+            } else if (stage.disasterType === 'blizzard') {
+                // 설산 눈보라 이펙트
+                ctx.fillStyle = 'rgba(224, 242, 254, 0.12)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 25; i++) {
+                    const rx = (Math.sin(Date.now() * 0.003 + i) * 0.5 + 0.5) * CONFIG.CANVAS_WIDTH;
+                    const ry = ((Date.now() * 0.2 + i * 40) % CONFIG.CANVAS_HEIGHT);
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillText('❄️ 눈보라 작동 중! 모든 타워 공격속도 2배 (3초간)', CONFIG.CANVAS_WIDTH / 2, 24);
+            } else if (stage.disasterType === 'eruption') {
+                // 화산 폭발 이펙트
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.14)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+                ctx.fillStyle = '#fb7185';
+                ctx.fillText('🌋 화산 폭발! 용암 유성우가 경로를 강타합니다!', CONFIG.CANVAS_WIDTH / 2, 24);
+            } else if (stage.disasterType === 'sandstorm') {
+                // 사막 모래폭풍 이펙트
+                ctx.fillStyle = 'rgba(217, 119, 6, 0.22)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+                ctx.fillStyle = 'rgba(253, 224, 71, 0.45)';
+                for (let i = 0; i < 30; i++) {
+                    const sx = ((Date.now() * 0.5 + i * 67) % CONFIG.CANVAS_WIDTH);
+                    const sy = ((Date.now() * 0.12 + i * 31) % CONFIG.CANVAS_HEIGHT);
+                    ctx.fillRect(sx, sy, 6, 2);
+                }
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText('🏜️ 모래폭풍 작동 중! 모든 타워 사거리 30% 감소', CONFIG.CANVAS_WIDTH / 2, 24);
+            } else if (stage.disasterType === 'thunderstorm') {
+                // 심연 낙뢰 이펙트
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.14)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+                ctx.fillStyle = '#e879f9';
+                ctx.fillText('⚡ 낙뢰 폭풍! 감전된 타워가 일시 정지됩니다!', CONFIG.CANVAS_WIDTH / 2, 24);
+            }
+        }
+
+        function drawTowers(now) {
+            towers.forEach(t => {
+                const isStunned = t.stunnedUntil && now < t.stunnedUntil;
+
+                ctx.fillStyle = isStunned ? '#422006' : '#1e293b';
+                ctx.fillRect(t.x + 2, t.y + 2, CONFIG.GRID_SIZE - 4, CONFIG.GRID_SIZE - 4);
+                
+                ctx.strokeStyle = isStunned ? '#facc15' : (t.level >= 3 ? '#fbbf24' : '#475569');
+                ctx.lineWidth = (isStunned || t.level >= 3) ? 2 : 1;
+                ctx.strokeRect(t.x + 2, t.y + 2, CONFIG.GRID_SIZE - 4, CONFIG.GRID_SIZE - 4);
+
+                if (t === selectedPlacedTower) {
+                    ctx.strokeStyle = '#6366f1';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(t.x, t.y, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+                }
+
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(t.icon, t.x + 20, t.y + 18);
+
+                if (isStunned) {
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText('⚡', t.x + 32, t.y + 10);
+                }
+
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillStyle = t.level >= 3 ? '#fbbf24' : '#94a3b8';
+                ctx.fillText(`Lv.${t.level}`, t.x + 20, t.y + 32);
+            });
+        }
+
+        function drawMonsters() {
+            monsters.forEach(m => {
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(m.emoji, m.x, m.y);
+
+                const barWidth = 28;
+                const barHeight = 4;
+                const bx = m.x - barWidth / 2;
+                const by = m.y - 18;
+
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(bx, by, barWidth, barHeight);
+
+                const hpRatio = Math.max(0, m.hp / m.maxHp);
+                ctx.fillStyle = hpRatio > 0.5 ? '#10b981' : hpRatio > 0.2 ? '#f59e0b' : '#ef4444';
+                ctx.fillRect(bx, by, barWidth * hpRatio, barHeight);
+
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(bx, by, barWidth, barHeight);
+            });
+        }
+
+        function drawProjectiles() {
+            projectiles.forEach(p => {
+                ctx.fillStyle = p.color || '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.type === 'fireball' ? 6 : 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (p.type === 'fireball') {
+                    ctx.strokeStyle = '#f97316';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach(pt => {
+                ctx.globalAlpha = Math.max(0, pt.life);
+                ctx.font = 'bold 11px sans-serif';
+                ctx.fillStyle = pt.color;
+                ctx.textAlign = 'center';
+                ctx.fillText(pt.text, pt.x, pt.y);
+                ctx.globalAlpha = 1.0;
+            });
+        }
+
+        // 레이캐스팅 기반 고드름 박스 교차 거리 계산
+        function getRayBoxIntersection(cx, cy, dirX, dirY, boxX, boxY, boxW, boxH) {
+            let tmin = 0;
+            let tmax = Infinity;
+
+            if (dirX !== 0) {
+                let tx1 = (boxX - cx) / dirX;
+                let tx2 = (boxX + boxW - cx) / dirX;
+                tmin = Math.max(tmin, Math.min(tx1, tx2));
+                tmax = Math.min(tmax, Math.max(tx1, tx2));
+            } else if (cx < boxX || cx > boxX + boxW) {
+                return null;
+            }
+
+            if (dirY !== 0) {
+                let ty1 = (boxY - cy) / dirY;
+                let ty2 = (boxY + boxH - cy) / dirY;
+                tmin = Math.max(tmin, Math.min(ty1, ty2));
+                tmax = Math.min(tmax, Math.max(ty1, ty2));
+            } else if (cy < boxY || cy > boxY + boxH) {
+                return null;
+            }
+
+            if (tmax >= tmin && tmin >= 0) {
+                return tmin;
+            }
+            return null;
+        }
+
+        // 고드름 등으로 공격이 차단된 방향은 사거리 표시에서 잘라내어 표현하는 함수
+        function drawClippedRange(cx, cy, range, fillStyle, strokeStyle, isDashed = true) {
+            const steps = 72;
+            ctx.beginPath();
+            for (let i = 0; i < steps; i++) {
+                const angle = (i / steps) * Math.PI * 2;
+                const dirX = Math.cos(angle);
+                const dirY = Math.sin(angle);
+
+                let maxDist = range;
+
+                if (STAGES[currentStageIndex].disasterType === 'blizzard' && icicles.length > 0) {
+                    for (let ic of icicles) {
+                        const hit = getRayBoxIntersection(cx, cy, dirX, dirY, ic.x, ic.y, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+                        if (hit !== null && hit > 0 && hit < maxDist) {
+                            maxDist = hit;
+                        }
+                    }
+                }
+
+                const px = cx + dirX * maxDist;
+                const py = cy + dirY * maxDist;
+
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = 1.5;
+            if (isDashed) ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawHoverAndRange() {
+            const stage = STAGES[currentStageIndex];
+            const rangeMultiplier = (stage.disasterType === 'sandstorm' && disasterActive) ? 0.7 : 1.0;
+
+            if (hoverGrid.x >= 0 && hoverGrid.y >= 0) {
+                const gx = hoverGrid.x;
+                const gy = hoverGrid.y;
+                const invalid = isPath(gx, gy) || towers.some(t => t.x === gx && t.y === gy) || icicles.some(ic => ic.x === gx && ic.y === gy);
+
+                ctx.fillStyle = invalid ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+                ctx.fillRect(gx, gy, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+                ctx.strokeStyle = invalid ? '#ef4444' : '#10b981';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(gx, gy, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+
+                if (selectedShopKey && !invalid) {
+                    const r = TOWER_TYPES[selectedShopKey].range * rangeMultiplier;
+                    drawClippedRange(gx + 20, gy + 20, r, 'rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.5)', true);
+                }
+            }
+
+            if (selectedPlacedTower) {
+                const t = selectedPlacedTower;
+                drawClippedRange(t.x + 20, t.y + 20, t.range * rangeMultiplier, 'rgba(99, 102, 241, 0.12)', 'rgba(99, 102, 241, 0.8)', true);
+            }
+        }
+
+        function gameLoop(now) {
+            if (gameState === 'PLAYING') {
+                updateNaturalDisaster(now);
+                spawnMonsters(now);
+                updateMonsters();
+                updateTowers(now);
+                updateProjectiles();
+                updateParticles();
+                checkWaveEnd();
+            }
+
+            // 렌더링 (그리기)
+            drawMap();
+            drawIcicles();
+            drawTowers(now);
+            drawMonsters();
+            drawProjectiles();
+            drawParticles();
+            drawHoverAndRange();
+            drawDisasterEffects(now);
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
 </body>
 </html>
