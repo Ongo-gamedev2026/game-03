@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>판타지 클래스 타워 디펜스</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -155,7 +155,7 @@
                     </div>
                 </div>
 
-                <!-- [우클릭 상세 툴팁] -->
+                <!-- [우클릭/롱프레스 상세 툴팁] -->
                 <div id="tower-tooltip" class="hidden absolute z-30 bg-gray-900/95 border border-amber-500/50 rounded-xl p-3 text-xs shadow-2xl backdrop-blur pointer-events-none w-48 space-y-1">
                     <div class="flex items-center justify-between border-b border-gray-800 pb-1">
                         <span id="tooltip-name" class="font-bold text-amber-400 text-sm">타워 이름</span>
@@ -261,6 +261,7 @@
                 btnActiveClass: 'bg-emerald-600 text-white shadow',
                 disasterType: 'gale',
                 disasterLabel: '🌪️ 자연재해: 돌풍',
+                disasterBannerText: '🌪️ 돌풍 발생! 몬스터 이동속도 45% 감소',
                 disasterInterval: 12000,
                 disasterDuration: 3500,
                 bgColor: '#16281e',
@@ -285,6 +286,7 @@
                 btnActiveClass: 'bg-cyan-600 text-white shadow',
                 disasterType: 'blizzard',
                 disasterLabel: '❄️ 자연재해: 눈보라·고드름',
+                disasterBannerText: '❄️ 눈보라 작동 중! 모든 타워 공격속도 2배',
                 disasterInterval: 10000,
                 disasterDuration: 3000,
                 bgColor: '#172533',
@@ -309,6 +311,7 @@
                 btnActiveClass: 'bg-rose-600 text-white shadow',
                 disasterType: 'eruption',
                 disasterLabel: '☄️ 자연재해: 화산 폭발',
+                disasterBannerText: '☄️ 화산 폭발! 용암 유성우 광역 폭격',
                 disasterInterval: 11000,
                 disasterDuration: 2500,
                 bgColor: '#2b1216',
@@ -333,6 +336,7 @@
                 btnActiveClass: 'bg-amber-600 text-white shadow',
                 disasterType: 'sandstorm',
                 disasterLabel: '🏜️ 자연재해: 모래폭풍',
+                disasterBannerText: '🏜️ 모래폭풍! 시야 제한으로 타워 사거리 30% 감소',
                 disasterInterval: 10000,
                 disasterDuration: 3500,
                 bgColor: '#2c2214',
@@ -357,6 +361,7 @@
                 btnActiveClass: 'bg-purple-600 text-white shadow',
                 disasterType: 'thunderstorm',
                 disasterLabel: '⚡ 자연재해: 낙뢰 폭풍',
+                disasterBannerText: '⚡ 낙뢰 폭풍! 적 전격 피해 및 주변 타워 일시 감전',
                 disasterInterval: 8500,
                 disasterDuration: 2200,
                 bgColor: '#1a132b',
@@ -380,6 +385,7 @@
         // 2. 게임 변수 상태 정의
         // ==========================================
         let canvas, ctx;
+        let isInitialized = false;
         let gameState = 'START'; // 'START', 'PLAYING', 'CLEAR', 'GAMEOVER'
         let currentStageIndex = 0;
         let gold = CONFIG.INITIAL_GOLD;
@@ -391,6 +397,8 @@
         let towers = [];
         let monsters = [];
         let projectiles = [];
+        let scheduledShots = [];
+        let slashEffects = [];
         let particles = [];
         let icicles = [];
         let lavaMeteors = [];
@@ -403,24 +411,137 @@
         let waveInProgress = false;
         let monsterSpawnQueue = [];
         let lastSpawnTime = 0;
+        let autoWaveTimer = null;
         let hoverGrid = { x: -1, y: -1 };
+        let lastFrameTime = 0;
 
         // ==========================================
-        // 3. 메인 초기화 및 실행 루프
+        // 3. 메인 초기화 및 게임 흐름 제어
         // ==========================================
-        window.onload = () => {
+        function initGame() {
+            if (isInitialized) return;
             canvas = document.getElementById('gameCanvas');
+            if (!canvas) return;
             ctx = canvas.getContext('2d');
+            isInitialized = true;
 
             initShopUI();
             setupEventListeners();
+            setupStageEnvironment();
             updateStageHeaderUI();
             updateUI();
 
+            lastFrameTime = performance.now();
             requestAnimationFrame(gameLoop);
-        };
+        }
 
-        // 스테이지 헤더 및 버튼 강조 갱신
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initGame);
+        } else {
+            initGame();
+        }
+        window.addEventListener('load', initGame);
+
+        function startGame() {
+            resetGameState();
+            gameState = 'PLAYING';
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            updateUI();
+        }
+
+        function restartGame() {
+            resetGameState();
+            gameState = 'PLAYING';
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            updateUI();
+        }
+
+        function selectStage(index) {
+            if (index < 0 || index >= STAGES.length) return;
+            currentStageIndex = index;
+            resetGameState();
+            updateStageHeaderUI();
+            if (gameState !== 'START') {
+                gameState = 'PLAYING';
+                document.getElementById('end-screen').classList.add('hidden');
+            }
+            updateUI();
+        }
+
+        function nextStage() {
+            if (currentStageIndex < STAGES.length - 1) {
+                selectStage(currentStageIndex + 1);
+            } else {
+                restartGame();
+            }
+        }
+
+        function resetGameState() {
+            if (autoWaveTimer) {
+                clearTimeout(autoWaveTimer);
+                autoWaveTimer = null;
+            }
+            gold = CONFIG.INITIAL_GOLD;
+            hp = CONFIG.INITIAL_HP;
+            wave = 0;
+            selectedShopKey = null;
+            selectedPlacedTower = null;
+
+            towers = [];
+            monsters = [];
+            projectiles = [];
+            scheduledShots = [];
+            slashEffects = [];
+            particles = [];
+            lavaMeteors = [];
+            lightningStrikes = [];
+
+            disasterActive = false;
+            disasterEndTime = 0;
+            lastDisasterTime = performance.now();
+
+            waveInProgress = false;
+            monsterSpawnQueue = [];
+            lastSpawnTime = 0;
+
+            setupStageEnvironment();
+            updateShopCardsHighlight();
+            renderSelectedTowerPanel();
+            updateUI();
+        }
+
+        function setupStageEnvironment() {
+            icicles = [];
+            const stage = STAGES[currentStageIndex];
+            if (stage.disasterType === 'blizzard') {
+                generateRandomIcicles(7);
+            }
+        }
+
+        function generateRandomIcicles(count) {
+            const cols = Math.floor(CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE);
+            const rows = Math.floor(CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE);
+            const candidates = [];
+
+            for (let c = 1; c < cols - 1; c++) {
+                for (let r = 1; r < rows - 1; r++) {
+                    const gx = c * CONFIG.GRID_SIZE;
+                    const gy = r * CONFIG.GRID_SIZE;
+                    if (!isPath(gx, gy)) {
+                        candidates.push({ x: gx, y: gy });
+                    }
+                }
+            }
+
+            for (let i = candidates.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+            }
+            icicles = candidates.slice(0, Math.min(count, candidates.length));
+        }
+
         function updateStageHeaderUI() {
             const stage = STAGES[currentStageIndex];
             for (let i = 0; i < STAGES.length; i++) {
@@ -433,7 +554,46 @@
                 }
             }
             document.getElementById('stage-label-text').innerText = `스테이지 ${stage.stageNum}`;
-// ... existing code ... -->
+            const subEl = document.getElementById('map-subtitle-text');
+            subEl.innerText = stage.subtitle;
+            subEl.className = `${stage.subtitleColor} font-semibold`;
+            document.getElementById('disaster-badge-text').innerText = stage.disasterLabel;
+        }
+
+        // ==========================================
+        // 4. 상점 및 UI 렌더링
+        // ==========================================
+        function initShopUI() {
+            const shopList = document.getElementById('tower-shop-list');
+            shopList.innerHTML = '';
+
+            Object.entries(TOWER_TYPES).forEach(([key, t]) => {
+                const card = document.createElement('div');
+                card.id = `shop-card-${key}`;
+                card.className = 'tower-card rounded-xl p-2 cursor-pointer flex flex-col justify-between gap-1 relative';
+                card.onclick = () => selectShopTower(key);
+
+                const statSubText = key === 'merchant'
+                    ? `생산 +20G | ${t.attackSpeed}초`
+                    : `공격 ${t.damage} | ${t.attackSpeed}초`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-base sm:text-lg">${t.icon}</span>
+                        <span class="text-[10px] font-bold bg-gray-900 border border-gray-700 text-gray-300 px-1.5 py-0.5 rounded">[${t.key}]</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-0.5">
+                        <span class="text-xs font-bold text-gray-100">${t.name}</span>
+                        <span class="text-xs font-bold text-amber-400">${t.cost}G</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 leading-tight">
+                        ${statSubText}
+                    </div>
+                `;
+                shopList.appendChild(card);
+            });
+        }
+
         function selectShopTower(key) {
             if (selectedShopKey === key) {
                 selectedShopKey = null;
@@ -455,6 +615,7 @@
         function updateShopCardsHighlight() {
             Object.keys(TOWER_TYPES).forEach(key => {
                 const card = document.getElementById(`shop-card-${key}`);
+                if (!card) return;
                 if (key === selectedShopKey) {
                     card.classList.add('selected');
                 } else {
@@ -475,9 +636,90 @@
             }
         }
 
+        function updateUI() {
+            document.getElementById('ui-gold').innerText = Math.floor(gold);
+            document.getElementById('ui-hp').innerText = Math.max(0, hp);
+            document.getElementById('ui-wave').innerText = `${wave} / ${CONFIG.TOTAL_WAVES}`;
+            document.getElementById('ui-monsters').innerText = monsters.length + monsterSpawnQueue.length;
+
+            const waveBtn = document.getElementById('btn-wave-start');
+            if (waveInProgress || gameState !== 'PLAYING' || wave >= CONFIG.TOTAL_WAVES) {
+                waveBtn.disabled = true;
+                waveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                waveBtn.disabled = false;
+                waveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
         // ==========================================
         // 5. 웨이브 진행 및 몬스터 스폰
-// ... existing code ... -->
+        // ==========================================
+        function startNextWave() {
+            if (gameState !== 'PLAYING') return;
+            if (waveInProgress || wave >= CONFIG.TOTAL_WAVES) return;
+
+            if (autoWaveTimer) {
+                clearTimeout(autoWaveTimer);
+                autoWaveTimer = null;
+            }
+
+            wave++;
+            waveInProgress = true;
+
+            const stage = STAGES[currentStageIndex];
+            const count = 6 + wave * 2;
+            const hpMultiplier = 1 + (wave - 1) * 0.25;
+
+            monsterSpawnQueue = [];
+            for (let i = 0; i < count; i++) {
+                let typeIdx = 0;
+                if (wave >= 2 && i % 3 === 1) typeIdx = 1;
+                if (wave >= 4 && i % 4 === 2) typeIdx = 2;
+
+                if (wave % 5 === 0) {
+                    if (i === count - 1 || (wave === 20 && i === count - 2)) {
+                        typeIdx = 3;
+                    }
+                }
+
+                const template = stage.monsters[typeIdx];
+                monsterSpawnQueue.push({
+                    name: template.name,
+                    maxHp: Math.round(template.hp * hpMultiplier),
+                    hp: Math.round(template.hp * hpMultiplier),
+                    speed: template.speed,
+                    gold: template.gold,
+                    emoji: template.emoji,
+                    isBoss: typeIdx === 3
+                });
+            }
+
+            lastSpawnTime = 0;
+            addParticle(CONFIG.CANVAS_WIDTH / 2, 70, `WAVE ${wave} 시작!`, "#fbbf24");
+            updateUI();
+        }
+
+        function spawnMonsterFromQueue(now) {
+            if (monsterSpawnQueue.length === 0) return;
+            const spawnInterval = Math.max(350, 750 - wave * 15);
+            if (now - lastSpawnTime < spawnInterval) return;
+
+            lastSpawnTime = now;
+            const data = monsterSpawnQueue.shift();
+            const stage = STAGES[currentStageIndex];
+            const startPt = stage.path[0];
+
+            monsters.push({
+                ...data,
+                x: startPt.x,
+                y: startPt.y,
+                pathIndex: 1,
+                distanceTraveled: 0
+            });
+            updateUI();
+        }
+
         // ==========================================
         // 6. 이벤트 리스너 (마우스, 터치, 키보드, 우클릭/롱프레스)
         // ==========================================
@@ -500,11 +742,12 @@
             }
             document.getElementById('tooltip-name').innerText = tower.name;
             document.getElementById('tooltip-level').innerText = `Lv.${tower.level}`;
-            document.getElementById('tooltip-atk').innerText = Math.round(tower.damage);
-            document.getElementById('tooltip-range').innerText = Math.round(tower.range);
-            document.getElementById('tooltip-spd').innerText = `${tower.attackSpeed}s`;
+            document.getElementById('tooltip-atk').innerText = tower.key === 'merchant'
+                ? `+${20 + (tower.level - 1) * 10}G`
+                : Math.round(tower.damage);
+            document.getElementById('tooltip-range').innerText = `${Math.round(tower.range)}px`;
+            document.getElementById('tooltip-spd').innerText = `${tower.attackSpeed}초`;
 
-            // 모바일 화면 밖으로 툴팁이 잘리지 않도록 좌표 보정
             const rawLeft = clientX - rect.left + 12;
             const rawTop = clientY - rect.top - 20;
             const clampedLeft = Math.max(8, Math.min(rawLeft, rect.width - 200));
@@ -519,7 +762,7 @@
             const { gx, gy } = getCanvasCoords(clientX, clientY);
             document.getElementById('tower-tooltip').classList.add('hidden');
 
-            const clickedTower = towers.find(t => t.x === gx && t.y === gy);
+            const clickedTower = towers.find(t => t.originX === gx && t.originY === gy);
 
             if (clickedTower) {
                 selectedPlacedTower = clickedTower;
@@ -543,7 +786,7 @@
                 const keyMap = { '1': 'assassin', '2': 'archer', '3': 'warrior', '4': 'wizard', '5': 'merchant' };
                 if (keyMap[e.key]) {
                     const towerKey = keyMap[e.key];
-                    if (hoverGrid.x >= 0 && hoverGrid.y >= 0) {
+                    if (hoverGrid.x >= 0 && hoverGrid.y >= 0 && gameState === 'PLAYING') {
                         placeTower(towerKey, hoverGrid.x, hoverGrid.y);
                     } else {
                         selectShopTower(towerKey);
@@ -570,7 +813,7 @@
             canvas.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 const { gx, gy, rect } = getCanvasCoords(e.clientX, e.clientY);
-                const clickedTower = towers.find(t => t.x === gx && t.y === gy);
+                const clickedTower = towers.find(t => t.originX === gx && t.originY === gy);
                 showTowerTooltip(clickedTower, e.clientX, e.clientY, rect);
             });
 
@@ -591,7 +834,7 @@
 
                 if (touchLongPressTimer) clearTimeout(touchLongPressTimer);
 
-                const touchedTower = towers.find(t => t.x === gx && t.y === gy);
+                const touchedTower = towers.find(t => t.originX === gx && t.originY === gy);
                 if (touchedTower) {
                     touchLongPressTimer = setTimeout(() => {
                         touchLongPressTriggered = true;
@@ -634,26 +877,35 @@
                 }
                 e.preventDefault();
             }, { passive: false });
+
+            canvas.addEventListener('touchcancel', () => {
+                if (touchLongPressTimer) {
+                    clearTimeout(touchLongPressTimer);
+                    touchLongPressTimer = null;
+                }
+                if (!selectedShopKey) {
+                    hoverGrid.x = -1;
+                    hoverGrid.y = -1;
+                }
+            });
+        }
+
+        function canPlaceTowerAt(gx, gy) {
+            if (gx < 0 || gy < 0 || gx >= CONFIG.CANVAS_WIDTH || gy >= CONFIG.CANVAS_HEIGHT) return { ok: false, reason: '맵 밖 불가!' };
+            if (towers.some(t => t.originX === gx && t.originY === gy)) return { ok: false, reason: '이미 설치됨!' };
+            if (icicles.some(ic => ic.x === gx && ic.y === gy)) return { ok: false, reason: '고드름 위치 설치 불가!' };
+            if (isPath(gx, gy)) return { ok: false, reason: '길에는 설치 불가!' };
+            return { ok: true, reason: '' };
         }
 
         function placeTower(key, gx, gy) {
-            if (gx < 0 || gy < 0 || gx >= CONFIG.CANVAS_WIDTH || gy >= CONFIG.CANVAS_HEIGHT) return false;
+            if (gameState !== 'PLAYING') return false;
             const tType = TOWER_TYPES[key];
             if (!tType) return false;
 
-            const existingTower = towers.find(t => t.x === gx && t.y === gy);
-            if (existingTower) {
-                addParticle(gx + 20, gy + 20, "이미 설치됨!", "#ef4444");
-                return false;
-            }
-
-            if (icicles.some(ic => ic.x === gx && ic.y === gy)) {
-                addParticle(gx + 20, gy + 20, "고드름 위치 설치 불가!", "#ef4444");
-                return false;
-            }
-
-            if (isPath(gx, gy)) {
-                addParticle(gx + 20, gy + 20, "길에는 설치 불가!", "#ef4444");
+            const check = canPlaceTowerAt(gx, gy);
+            if (!check.ok) {
+                addParticle(gx + 20, gy + 20, check.reason, "#ef4444");
                 return false;
             }
 
@@ -717,11 +969,13 @@
                 selectedPlacedTower.costSum += cost;
                 selectedPlacedTower.damage = Math.round(selectedPlacedTower.damage * 1.35);
                 selectedPlacedTower.range = Math.round(selectedPlacedTower.range * 1.1);
-                addParticle(selectedPlacedTower.x + 20, selectedPlacedTower.y + 20, `Lv.${selectedPlacedTower.level} 강화!`, "#fbbf24");
+
+                const unlockMsg = selectedPlacedTower.level === 3 ? ' ★3강 스킬 개방!' : '';
+                addParticle(selectedPlacedTower.originX + 20, selectedPlacedTower.originY + 20, `Lv.${selectedPlacedTower.level} 강화!${unlockMsg}`, "#fbbf24");
                 updateUI();
                 renderSelectedTowerPanel();
             } else {
-                addParticle(selectedPlacedTower.x + 20, selectedPlacedTower.y + 20, "골드 부족!", "#ef4444");
+                addParticle(selectedPlacedTower.originX + 20, selectedPlacedTower.originY + 20, "골드 부족!", "#ef4444");
             }
         }
 
@@ -729,7 +983,7 @@
             if (!selectedPlacedTower) return;
             const refund = Math.round(selectedPlacedTower.costSum * CONFIG.REFUND_RATE);
             gold += refund;
-            addParticle(selectedPlacedTower.x + 20, selectedPlacedTower.y + 20, `+${refund}G 판매`, "#10b981");
+            addParticle(selectedPlacedTower.originX + 20, selectedPlacedTower.originY + 20, `+${refund}G 판매`, "#10b981");
             towers = towers.filter(t => t !== selectedPlacedTower);
             selectedPlacedTower = null;
             updateUI();
@@ -788,4 +1042,844 @@
                 btnSell.innerHTML = `<i class="fa-solid fa-sack-xmark"></i> 판매하기`;
             }
         }
-// ... existing code ... -->
+
+        // ==========================================
+        // 8. 자연재해 및 전투/이동 로직
+        // ==========================================
+        function updateDisasters(now) {
+            const stage = STAGES[currentStageIndex];
+
+            if (disasterActive && now >= disasterEndTime) {
+                disasterActive = false;
+            }
+
+            if (!disasterActive && waveInProgress && now - lastDisasterTime >= stage.disasterInterval) {
+                disasterActive = true;
+                disasterEndTime = now + stage.disasterDuration;
+                lastDisasterTime = now;
+                triggerDisasterEffect(stage, now);
+            }
+        }
+
+        function triggerDisasterEffect(stage, now) {
+            if (stage.disasterType === 'eruption') {
+                for (let i = 0; i < 4; i++) {
+                    const pt = getRandomPointOnPath(stage.path);
+                    lavaMeteors.push({
+                        x: pt.x,
+                        y: pt.y,
+                        radius: 65,
+                        progress: 0,
+                        damage: 45 + wave * 12,
+                        exploded: false
+                    });
+                }
+            } else if (stage.disasterType === 'thunderstorm') {
+                for (let i = 0; i < 2; i++) {
+                    let targetX, targetY;
+                    if (monsters.length > 0 && Math.random() < 0.7) {
+                        const m = monsters[Math.floor(Math.random() * monsters.length)];
+                        targetX = m.x;
+                        targetY = m.y;
+                    } else if (towers.length > 0) {
+                        const t = towers[Math.floor(Math.random() * towers.length)];
+                        targetX = t.originX + 20;
+                        targetY = t.originY + 20;
+                    } else {
+                        const pt = getRandomPointOnPath(stage.path);
+                        targetX = pt.x;
+                        targetY = pt.y;
+                    }
+
+                    lightningStrikes.push({
+                        x: targetX,
+                        y: targetY,
+                        createdAt: now,
+                        duration: 600
+                    });
+
+                    const shockDmg = 50 + wave * 14;
+                    monsters.forEach(m => {
+                        if (Math.hypot(m.x - targetX, m.y - targetY) <= 60) {
+                            damageMonster(m, shockDmg, '#c084fc');
+                        }
+                    });
+
+                    towers.forEach(t => {
+                        if (Math.hypot((t.originX + 20) - targetX, (t.originY + 20) - targetY) <= 55) {
+                            t.stunnedUntil = now + 2200;
+                            addParticle(t.originX + 20, t.originY, "⚡감전!", "#c084fc");
+                        }
+                    });
+                }
+            }
+        }
+
+        function getRandomPointOnPath(path) {
+            const segIdx = Math.floor(Math.random() * (path.length - 1));
+            const a = path[segIdx];
+            const b = path[segIdx + 1];
+            const t = Math.random();
+            return {
+                x: a.x + (b.x - a.x) * t,
+                y: a.y + (b.y - a.y) * t
+            };
+        }
+
+        function isLineBlockedByIcicle(x1, y1, x2, y2) {
+            if (icicles.length === 0) return false;
+            for (const ic of icicles) {
+                if (segmentIntersectsRect(x1, y1, x2, y2, ic.x + 4, ic.y + 4, CONFIG.GRID_SIZE - 8, CONFIG.GRID_SIZE - 8)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function segmentIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+            const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+            if (x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) return true;
+            if (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom) return true;
+
+            return (
+                linesIntersect(x1, y1, x2, y2, left, top, right, top) ||
+                linesIntersect(x1, y1, x2, y2, right, top, right, bottom) ||
+                linesIntersect(x1, y1, x2, y2, right, bottom, left, bottom) ||
+                linesIntersect(x1, y1, x2, y2, left, bottom, left, top)
+            );
+        }
+
+        function linesIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+            if (denom === 0) return false;
+            const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+            const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+            return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+        }
+
+        function updateMonsters(dt) {
+            const stage = STAGES[currentStageIndex];
+            const path = stage.path;
+            const speedFactor = (disasterActive && stage.disasterType === 'gale') ? 0.55 : 1.0;
+
+            for (let i = monsters.length - 1; i >= 0; i--) {
+                const m = monsters[i];
+                if (m.hp <= 0) continue;
+
+                const targetPt = path[m.pathIndex];
+                if (!targetPt) continue;
+
+                const dx = targetPt.x - m.x;
+                const dy = targetPt.y - m.y;
+                const dist = Math.hypot(dx, dy);
+                const moveStep = m.speed * speedFactor * 60 * dt;
+
+                if (dist <= moveStep) {
+                    m.x = targetPt.x;
+                    m.y = targetPt.y;
+                    m.distanceTraveled += dist;
+                    m.pathIndex++;
+
+                    if (m.pathIndex >= path.length) {
+                        hp--;
+                        monsters.splice(i, 1);
+                        addParticle(CONFIG.CANVAS_WIDTH - 30, targetPt.y, "기지 피격! -1 HP", "#ef4444");
+                        updateUI();
+
+                        if (hp <= 0) {
+                            endGame(false);
+                            return;
+                        }
+                    }
+                } else {
+                    m.x += (dx / dist) * moveStep;
+                    m.y += (dy / dist) * moveStep;
+                    m.distanceTraveled += moveStep;
+                }
+            }
+        }
+
+        function updateTowers(now, dt) {
+            const stage = STAGES[currentStageIndex];
+            const speedMultiplier = (disasterActive && stage.disasterType === 'blizzard') ? 0.5 : 1.0;
+            const rangeMultiplier = (disasterActive && stage.disasterType === 'sandstorm') ? 0.7 : 1.0;
+
+            towers.forEach(t => {
+                if (t.stunnedUntil && now < t.stunnedUntil) {
+                    return;
+                }
+
+                const cooldownMs = t.attackSpeed * 1000 * speedMultiplier;
+
+                if (t.key === 'merchant') {
+                    if (waveInProgress && now - t.lastAttackTime >= cooldownMs) {
+                        t.lastAttackTime = now;
+                        const income = 20 + (t.level - 1) * 10;
+                        gold += income;
+                        addParticle(t.originX + 20, t.originY + 10, `+${income}G`, "#fbbf24");
+                        updateUI();
+                    }
+                    return;
+                }
+
+                const effectiveRange = t.range * rangeMultiplier * (t.key === 'assassin' && t.level >= 3 ? 1.8 : 1.0);
+                const originCx = t.originX + 20;
+                const originCy = t.originY + 20;
+
+                let bestTarget = null;
+                let maxProgress = -1;
+
+                for (const m of monsters) {
+                    if (m.hp <= 0) continue;
+                    const dist = Math.hypot(m.x - originCx, m.y - originCy);
+                    if (dist <= effectiveRange) {
+                        if (isLineBlockedByIcicle(originCx, originCy, m.x, m.y)) {
+                            continue;
+                        }
+                        if (m.distanceTraveled > maxProgress) {
+                            maxProgress = m.distanceTraveled;
+                            bestTarget = m;
+                        }
+                    }
+                }
+
+                if (t.key === 'assassin' && t.level >= 3 && bestTarget) {
+                    const targetGx = bestTarget.x - 20;
+                    const targetGy = bestTarget.y - 20;
+                    t.x += (targetGx - t.x) * Math.min(1, 10 * dt);
+                    t.y += (targetGy - t.y) * Math.min(1, 10 * dt);
+                } else {
+                    t.x += (t.originX - t.x) * Math.min(1, 12 * dt);
+                    t.y += (t.originY - t.y) * Math.min(1, 12 * dt);
+                }
+
+                if (!bestTarget) return;
+                if (now - t.lastAttackTime < cooldownMs) return;
+
+                t.lastAttackTime = now;
+                performTowerAttack(t, bestTarget, now);
+            });
+        }
+
+        function performTowerAttack(t, target, now) {
+            const cx = t.x + 20;
+            const cy = t.y + 20;
+
+            if (t.key === 'assassin') {
+                if (t.level >= 3) {
+                    t.x = target.x - 20;
+                    t.y = target.y - 20;
+                    const critDmg = Math.round(t.damage * 1.3);
+                    damageMonster(target, critDmg, '#e879f9');
+                    slashEffects.push({
+                        x: target.x,
+                        y: target.y,
+                        color: '#d946ef',
+                        radius: 26,
+                        isSlam: false,
+                        createdAt: now,
+                        duration: 240
+                    });
+                } else {
+                    damageMonster(target, t.damage, '#f43f5e');
+                    slashEffects.push({
+                        x: target.x,
+                        y: target.y,
+                        color: '#fb7185',
+                        radius: 20,
+                        isSlam: false,
+                        createdAt: now,
+                        duration: 200
+                    });
+                }
+            } else if (t.key === 'warrior') {
+                if (t.level >= 3) {
+                    const slamRadius = 45;
+                    monsters.forEach(m => {
+                        if (Math.hypot(m.x - target.x, m.y - target.y) <= slamRadius) {
+                            damageMonster(m, t.damage, '#f97316');
+                        }
+                    });
+                    slashEffects.push({
+                        x: target.x,
+                        y: target.y,
+                        color: '#f97316',
+                        radius: slamRadius,
+                        isSlam: true,
+                        createdAt: now,
+                        duration: 300
+                    });
+                } else {
+                    damageMonster(target, t.damage, '#fbbf24');
+                    slashEffects.push({
+                        x: target.x,
+                        y: target.y,
+                        color: '#facc15',
+                        radius: 22,
+                        isSlam: false,
+                        createdAt: now,
+                        duration: 200
+                    });
+                }
+            } else if (t.key === 'archer') {
+                if (t.level >= 3) {
+                    const shotDmg = Math.max(1, Math.round(t.damage * 0.7));
+                    spawnProjectile(cx, cy, target, shotDmg, 'arrow', 0);
+                    scheduledShots.push({ fireAt: now + 100, x: cx, y: cy, target, damage: shotDmg, type: 'arrow' });
+                    scheduledShots.push({ fireAt: now + 200, x: cx, y: cy, target, damage: shotDmg, type: 'arrow' });
+                } else {
+                    spawnProjectile(cx, cy, target, t.damage, 'arrow', 0);
+                }
+            } else if (t.key === 'wizard') {
+                if (t.level >= 3) {
+                    spawnProjectile(cx, cy, target, t.damage, 'fireball', 40);
+                } else {
+                    spawnProjectile(cx, cy, target, t.damage, 'blue_bolt', 0);
+                }
+            }
+        }
+
+        function spawnProjectile(x, y, target, damage, type, splashRadius) {
+            if (!target) return;
+            projectiles.push({
+                x: x,
+                y: y,
+                target: target,
+                lastKnownX: target.x,
+                lastKnownY: target.y,
+                damage: damage,
+                type: type,
+                splashRadius: splashRadius,
+                speed: type === 'arrow' ? 460 : 340
+            });
+        }
+
+        function updateScheduledShots(now) {
+            for (let i = scheduledShots.length - 1; i >= 0; i--) {
+                const s = scheduledShots[i];
+                if (now >= s.fireAt) {
+                    let target = s.target;
+                    if (!target || target.hp <= 0) {
+                        target = monsters.find(m => m.hp > 0);
+                    }
+                    if (target) {
+                        spawnProjectile(s.x, s.y, target, s.damage, s.type, 0);
+                    }
+                    scheduledShots.splice(i, 1);
+                }
+            }
+        }
+
+        function updateProjectiles(dt) {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                if (p.target && p.target.hp > 0) {
+                    p.lastKnownX = p.target.x;
+                    p.lastKnownY = p.target.y;
+                }
+
+                const dx = p.lastKnownX - p.x;
+                const dy = p.lastKnownY - p.y;
+                const dist = Math.hypot(dx, dy);
+                const step = p.speed * dt;
+
+                if (dist <= step) {
+                    if (p.splashRadius > 0) {
+                        monsters.forEach(m => {
+                            if (Math.hypot(m.x - p.lastKnownX, m.y - p.lastKnownY) <= p.splashRadius) {
+                                damageMonster(m, p.damage, '#fb923c');
+                            }
+                        });
+                        slashEffects.push({
+                            x: p.lastKnownX,
+                            y: p.lastKnownY,
+                            color: '#ef4444',
+                            radius: p.splashRadius,
+                            isSlam: true,
+                            createdAt: performance.now(),
+                            duration: 280
+                        });
+                    } else if (p.target && p.target.hp > 0) {
+                        const hitColor = p.type === 'blue_bolt' ? '#38bdf8' : '#fde047';
+                        damageMonster(p.target, p.damage, hitColor);
+                    }
+                    projectiles.splice(i, 1);
+                } else {
+                    p.x += (dx / dist) * step;
+                    p.y += (dy / dist) * step;
+                }
+            }
+        }
+
+        function damageMonster(m, amount, color = '#ffffff') {
+            if (!m || m.hp <= 0) return;
+            m.hp -= amount;
+            addParticle(m.x + (Math.random() * 14 - 7), m.y - 14, `-${Math.round(amount)}`, color);
+
+            if (m.hp <= 0) {
+                const idx = monsters.indexOf(m);
+                if (idx !== -1) {
+                    monsters.splice(idx, 1);
+                }
+                gold += m.gold;
+                addParticle(m.x, m.y - 24, `+${m.gold}G`, "#fbbf24");
+                updateUI();
+            }
+        }
+
+        function updateLavaMeteors(dt) {
+            for (let i = lavaMeteors.length - 1; i >= 0; i--) {
+                const lm = lavaMeteors[i];
+                lm.progress += dt * 1.4;
+                if (lm.progress >= 1 && !lm.exploded) {
+                    lm.exploded = true;
+                    monsters.forEach(m => {
+                        if (Math.hypot(m.x - lm.x, m.y - lm.y) <= lm.radius) {
+                            damageMonster(m, lm.damage, '#f97316');
+                        }
+                    });
+                    addParticle(lm.x, lm.y, "☄️ 용암 폭발!", "#f97316");
+                }
+                if (lm.progress >= 1.5) {
+                    lavaMeteors.splice(i, 1);
+                }
+            }
+        }
+
+        function addParticle(x, y, text, color) {
+            particles.push({
+                x: x,
+                y: y,
+                text: text,
+                color: color,
+                alpha: 1.0,
+                vy: -28
+            });
+        }
+
+        function updateParticles(dt) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.y += pt.vy * dt;
+                pt.alpha -= dt * 1.15;
+                if (pt.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function checkWaveCompletion() {
+            if (!waveInProgress) return;
+            if (monsterSpawnQueue.length === 0 && monsters.length === 0) {
+                waveInProgress = false;
+                const clearBonus = 25 + wave * 5;
+                gold += clearBonus;
+                addParticle(CONFIG.CANVAS_WIDTH / 2, 100, `WAVE ${wave} 클리어! +${clearBonus}G`, "#34d399");
+                updateUI();
+
+                if (wave >= CONFIG.TOTAL_WAVES) {
+                    endGame(true);
+                    return;
+                }
+
+                const autoChk = document.getElementById('chk-auto-wave');
+                if (autoChk && autoChk.checked && gameState === 'PLAYING') {
+                    autoWaveTimer = setTimeout(() => {
+                        startNextWave();
+                    }, 1000);
+                }
+            }
+        }
+
+        function endGame(isVictory) {
+            gameState = isVictory ? 'CLEAR' : 'GAMEOVER';
+            updateUI();
+
+            const endScreen = document.getElementById('end-screen');
+            const endIcon = document.getElementById('end-icon');
+            const endTitle = document.getElementById('end-title');
+            const endDesc = document.getElementById('end-desc');
+            const btnNext = document.getElementById('btn-next-stage');
+
+            if (isVictory) {
+                endIcon.className = 'w-20 h-20 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-emerald-400 text-4xl mb-4';
+                endIcon.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+                endTitle.className = 'text-3xl font-black text-emerald-400 mb-2';
+                endTitle.innerText = 'STAGE CLEAR!';
+                endDesc.innerText = `${STAGES[currentStageIndex].subtitle}의 20개 웨이브를 모두 성공적으로 방어했습니다!`;
+                if (currentStageIndex < STAGES.length - 1) {
+                    btnNext.classList.remove('hidden');
+                } else {
+                    btnNext.classList.add('hidden');
+                }
+            } else {
+                endIcon.className = 'w-20 h-20 bg-rose-500/20 border border-rose-500/40 rounded-full flex items-center justify-center text-rose-400 text-4xl mb-4';
+                endIcon.innerHTML = '<i class="fa-solid fa-skull-crossbones"></i>';
+                endTitle.className = 'text-3xl font-black text-rose-400 mb-2';
+                endTitle.innerText = 'GAME OVER';
+                endDesc.innerText = `웨이브 ${wave}에서 기지 체력이 모두 소진되었습니다.`;
+                btnNext.classList.add('hidden');
+            }
+
+            endScreen.classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 9. 캔버스 렌더링 (배경, 경로, 고드름, 타워, 몬스터, 이펙트)
+        // ==========================================
+        function drawMapAndPath() {
+            const stage = STAGES[currentStageIndex];
+
+            ctx.fillStyle = stage.bgColor;
+            ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+            ctx.strokeStyle = stage.gridColor;
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= CONFIG.CANVAS_WIDTH; x += CONFIG.GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= CONFIG.CANVAS_HEIGHT; y += CONFIG.GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+
+            const p = stage.path;
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = stage.pathColor;
+            ctx.lineWidth = 44;
+            ctx.beginPath();
+            ctx.moveTo(p[0].x, p[0].y);
+            for (let i = 1; i < p.length; i++) {
+                ctx.lineTo(p[i].x, p[i].y);
+            }
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 8]);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.font = '24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚪', p[0].x + 18, p[0].y);
+
+            const endPt = p[p.length - 1];
+            ctx.fillText('🏰', endPt.x - 22, endPt.y);
+
+            for (const ic of icicles) {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+                ctx.fillRect(ic.x + 2, ic.y + 2, CONFIG.GRID_SIZE - 4, CONFIG.GRID_SIZE - 4);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(ic.x + 2, ic.y + 2, CONFIG.GRID_SIZE - 4, CONFIG.GRID_SIZE - 4);
+                ctx.font = '22px sans-serif';
+                ctx.fillText('🧊', ic.x + 20, ic.y + 21);
+            }
+        }
+
+        function drawHoverAndRange() {
+            const stage = STAGES[currentStageIndex];
+            const rangeMultiplier = (disasterActive && stage.disasterType === 'sandstorm') ? 0.7 : 1.0;
+
+            for (const t of towers) {
+                const isSelected = t === selectedPlacedTower;
+                const cx = t.originX + 20;
+                const cy = t.originY + 20;
+                const r = t.range * rangeMultiplier;
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = isSelected ? 'rgba(251, 191, 36, 0.12)' : 'rgba(99, 102, 241, 0.04)';
+                ctx.fill();
+                ctx.strokeStyle = isSelected ? 'rgba(251, 191, 36, 0.75)' : 'rgba(148, 163, 184, 0.22)';
+                ctx.lineWidth = isSelected ? 2 : 1;
+                ctx.stroke();
+            }
+
+            if (hoverGrid.x >= 0 && hoverGrid.y >= 0 && gameState === 'PLAYING') {
+                const check = canPlaceTowerAt(hoverGrid.x, hoverGrid.y);
+                ctx.fillStyle = selectedShopKey
+                    ? (check.ok ? 'rgba(16, 185, 129, 0.28)' : 'rgba(239, 68, 68, 0.32)')
+                    : 'rgba(255, 255, 255, 0.08)';
+                ctx.fillRect(hoverGrid.x, hoverGrid.y, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+
+                ctx.strokeStyle = selectedShopKey
+                    ? (check.ok ? '#10b981' : '#ef4444')
+                    : 'rgba(255, 255, 255, 0.25)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(hoverGrid.x + 1, hoverGrid.y + 1, CONFIG.GRID_SIZE - 2, CONFIG.GRID_SIZE - 2);
+
+                if (selectedShopKey && TOWER_TYPES[selectedShopKey]) {
+                    const tType = TOWER_TYPES[selectedShopKey];
+                    const r = tType.range * rangeMultiplier;
+                    ctx.beginPath();
+                    ctx.arc(hoverGrid.x + 20, hoverGrid.y + 20, r, 0, Math.PI * 2);
+                    ctx.fillStyle = check.ok ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+                    ctx.fill();
+                    ctx.strokeStyle = check.ok ? 'rgba(16, 185, 129, 0.75)' : 'rgba(239, 68, 68, 0.75)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawTowers(now) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (const t of towers) {
+                const cx = t.x + 20;
+                const cy = t.y + 20;
+                const isSelected = t === selectedPlacedTower;
+                const isStunned = t.stunnedUntil && now < t.stunnedUntil;
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+                ctx.fillStyle = t.level >= 3 ? 'rgba(245, 158, 11, 0.28)' : 'rgba(17, 24, 39, 0.85)';
+                ctx.fill();
+                ctx.lineWidth = isSelected ? 2.5 : 1.5;
+                ctx.strokeStyle = isSelected ? '#fbbf24' : (t.level >= 3 ? '#f59e0b' : '#4b5563');
+                ctx.stroke();
+
+                ctx.font = '21px sans-serif';
+                ctx.fillText(t.icon, cx, cy);
+
+                ctx.fillStyle = t.level >= 3 ? '#d97706' : '#374151';
+                ctx.fillRect(t.x + 23, t.y + 2, 16, 12);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillText(`L${t.level}`, t.x + 31, t.y + 8);
+
+                if (isStunned) {
+                    ctx.font = '14px sans-serif';
+                    ctx.fillText('⚡', cx, t.y - 4);
+                }
+            }
+        }
+
+        function drawMonsters() {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (const m of monsters) {
+                ctx.beginPath();
+                ctx.ellipse(m.x, m.y + 12, m.isBoss ? 16 : 11, 5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.fill();
+
+                ctx.font = m.isBoss ? '28px sans-serif' : '21px sans-serif';
+                ctx.fillText(m.emoji, m.x, m.y);
+
+                const barW = m.isBoss ? 36 : 26;
+                const barH = 4;
+                const ratio = Math.max(0, m.hp / m.maxHp);
+                ctx.fillStyle = '#111827';
+                ctx.fillRect(m.x - barW / 2, m.y - (m.isBoss ? 22 : 17), barW, barH);
+                ctx.fillStyle = ratio > 0.5 ? '#10b981' : (ratio > 0.25 ? '#f59e0b' : '#ef4444');
+                ctx.fillRect(m.x - barW / 2, m.y - (m.isBoss ? 22 : 17), barW * ratio, barH);
+            }
+        }
+
+        function drawProjectilesAndEffects(now) {
+            for (const p of projectiles) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                const angle = Math.atan2(p.lastKnownY - p.y, p.lastKnownX - p.x);
+                ctx.rotate(angle);
+
+                if (p.type === 'arrow') {
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(8, 0);
+                    ctx.stroke();
+                } else if (p.type === 'blue_bolt') {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (p.type === 'fireball') {
+                    ctx.fillStyle = '#f97316';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fef08a';
+                    ctx.beginPath();
+                    ctx.arc(2, 0, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            for (let i = slashEffects.length - 1; i >= 0; i--) {
+                const eff = slashEffects[i];
+                const elapsed = now - eff.createdAt;
+                if (elapsed >= eff.duration) {
+                    slashEffects.splice(i, 1);
+                    continue;
+                }
+                const progress = elapsed / eff.duration;
+                ctx.save();
+                ctx.globalAlpha = 1 - progress;
+
+                if (eff.isSlam) {
+                    ctx.beginPath();
+                    ctx.arc(eff.x, eff.y, eff.radius * (0.4 + 0.6 * progress), 0, Math.PI * 2);
+                    ctx.fillStyle = eff.color;
+                    ctx.globalAlpha = (1 - progress) * 0.25;
+                    ctx.fill();
+                    ctx.globalAlpha = 1 - progress;
+                    ctx.strokeStyle = eff.color;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = eff.color;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(eff.x, eff.y, eff.radius, -0.7, 0.9);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            for (const lm of lavaMeteors) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(lm.x, lm.y, lm.radius, 0, Math.PI * 2);
+                ctx.fillStyle = lm.exploded ? 'rgba(239, 68, 68, 0.35)' : 'rgba(249, 115, 22, 0.18)';
+                ctx.fill();
+                ctx.strokeStyle = '#f97316';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                if (!lm.exploded) {
+                    const dropY = lm.y - (1 - lm.progress) * 140;
+                    ctx.font = '26px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('☄️', lm.x, dropY);
+                }
+                ctx.restore();
+            }
+
+            for (let i = lightningStrikes.length - 1; i >= 0; i--) {
+                const ls = lightningStrikes[i];
+                const elapsed = now - ls.createdAt;
+                if (elapsed >= ls.duration) {
+                    lightningStrikes.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = 1 - elapsed / ls.duration;
+                ctx.strokeStyle = '#e879f9';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(ls.x + 15, 0);
+                ctx.lineTo(ls.x - 10, ls.y * 0.45);
+                ctx.lineTo(ls.x + 12, ls.y * 0.72);
+                ctx.lineTo(ls.x, ls.y);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function drawDisasterOverlay(now) {
+            if (!disasterActive) return;
+            const stage = STAGES[currentStageIndex];
+
+            ctx.save();
+            if (stage.disasterType === 'gale') {
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+            } else if (stage.disasterType === 'blizzard') {
+                ctx.fillStyle = 'rgba(186, 230, 253, 0.14)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 24; i++) {
+                    const sx = ((now * 0.12 + i * 73) % CONFIG.CANVAS_WIDTH);
+                    const sy = ((now * 0.18 + i * 47) % CONFIG.CANVAS_HEIGHT);
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (stage.disasterType === 'sandstorm') {
+                ctx.fillStyle = 'rgba(217, 119, 6, 0.22)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+            } else if (stage.disasterType === 'thunderstorm') {
+                ctx.fillStyle = 'rgba(147, 51, 234, 0.12)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+            }
+
+            ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+            ctx.fillRect(CONFIG.CANVAS_WIDTH / 2 - 190, 12, 380, 28);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(CONFIG.CANVAS_WIDTH / 2 - 190, 12, 380, 28);
+
+            ctx.fillStyle = '#fde047';
+            ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(stage.disasterBannerText, CONFIG.CANVAS_WIDTH / 2, 26);
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 13px "Noto Sans KR", sans-serif';
+
+            for (const pt of particles) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, pt.alpha);
+                ctx.fillStyle = '#000000';
+                ctx.fillText(pt.text, pt.x + 1, pt.y + 1);
+                ctx.fillStyle = pt.color;
+                ctx.fillText(pt.text, pt.x, pt.y);
+                ctx.restore();
+            }
+        }
+
+        // ==========================================
+        // 10. 메인 게임 루프 (gameLoop)
+        // ==========================================
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            if (gameState === 'PLAYING') {
+                updateDisasters(now);
+                spawnMonsterFromQueue(now);
+                updateMonsters(dt);
+                updateTowers(now, dt);
+                updateScheduledShots(now);
+                updateProjectiles(dt);
+                updateLavaMeteors(dt);
+                checkWaveCompletion();
+            }
+
+            updateParticles(dt);
+
+            drawMapAndPath();
+            drawHoverAndRange();
+            drawTowers(now);
+            drawMonsters();
+            drawProjectilesAndEffects(now);
+            drawDisasterOverlay(now);
+            drawParticles();
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
